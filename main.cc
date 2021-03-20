@@ -3,6 +3,7 @@
 #include "InitialCondition.hpp"
 #include "PrimsCons.hpp"
 #include "Rhs.hpp"
+#include <chrono>
 using cmf::print;
 std::string GetInputFile(int argc, char** argv)
 {
@@ -42,17 +43,23 @@ int main(int argc, char** argv)
 	
 	InitialCondition(prims, rhs, params);
 	PrimsToCons(prims, cons, params);
+	double elapsedTime = 0.0;
 	for (int nt = 0; nt < params.maxStep; nt++)
 	{
-		if (cmf::globalGroup.IsRoot())
-		{
-			print("Timestep ", nt);
-		}
+		auto start = std::chrono::high_resolution_clock::now();
 		ComputeRhs(prims, cons, rhs, params);
 		Advance(cons, rhs, params);
 		ConsToPrims(prims, cons, params);
 		cons.Exchange();
 		prims.Exchange();
+		auto finish = std::chrono::high_resolution_clock::now();
+		std::chrono::duration<double> elapsed = finish - start;
+		double timeMS = 1000*elapsed.count();
+		if (cmf::globalGroup.IsRoot())
+		{
+			print("Timestep", nt, "\nElapsed:", timeMS, "ms");
+		}
+        elapsedTime += timeMS;
 	}
 	return 0;
 }
