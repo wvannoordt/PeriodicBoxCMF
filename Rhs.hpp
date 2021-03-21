@@ -2,6 +2,7 @@
 #define RHS_HPP
 #include "cmf.h"
 #include "InputParams.h"
+#include "util.h"
 #define stencilIdx(v,j) ((v)+(5+3)*(j))
 #define f_DivSplit(q,j,l,v1)         (0.500*(q[stencilIdx((v1),(j))] + q[stencilIdx((v1),(j)+(l))]))
 #define fg_QuadSplit(q,j,l,v1,v2)    (0.250*(q[stencilIdx((v1),(j))] + q[stencilIdx((v1),(j)+(l))])*(q[stencilIdx((v2),(j))] + q[stencilIdx((v2),(j)+(l))]))
@@ -113,6 +114,11 @@ void ComputeRhs(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& cons, c
                         rhsLb(3, i, j, k)      -= info.dxInv[idir]*(M[1] - M[4]);
                         rhsLb(4, i, j, k)      -= info.dxInv[idir]*(M[2] - M[5]);
                         rhsLb(2+idir, i, j, k) -= info.dxInv[idir]*(PGRAD[1] - PGRAD[0]);
+                        // if (cmf::globalGroup.IsRoot())
+                        // {
+                        //     std::cout << rhsLb(3, i, j, k) << std::endl;
+                        //     KILL
+                        // }
                     }
                 }
             }
@@ -142,6 +148,51 @@ void Advance(cmf::CartesianMeshArray& cons, cmf::CartesianMeshArray& rhs, InputP
             }
         }
     }
+}
+
+void ZeroRhs(cmf::CartesianMeshArray& rhs)
+{
+    for (auto lb: rhs)
+    {
+        cmf::BlockArray<double, 1> rhsLb  = rhs[lb];
+        for (cmf::cell_t k = rhsLb.kmin; k < rhsLb.kmax; k++)
+        {
+            for (cmf::cell_t j = rhsLb.jmin; j < rhsLb.jmax; j++)
+            {
+                for (cmf::cell_t i = rhsLb.imin; i < rhsLb.imax; i++)
+                {
+                    rhsLb(0, i, j, k) = 0.0;
+                    rhsLb(1, i, j, k) = 0.0;
+                    rhsLb(2, i, j, k) = 0.0;
+                    rhsLb(3, i, j, k) = 0.0;
+                    rhsLb(4, i, j, k) = 0.0;
+                }
+            }
+        }
+    }
+}
+double UMax(cmf::CartesianMeshArray& prims)
+{
+    double umax = -1;
+    for (auto lb: prims)
+    {
+        cmf::BlockArray<double, 1> primsLb  = prims[lb];
+        for (cmf::cell_t k = primsLb.kmin; k < primsLb.kmax; k++)
+        {
+            for (cmf::cell_t j = primsLb.jmin; j < primsLb.jmax; j++)
+            {
+                for (cmf::cell_t i = primsLb.imin; i < primsLb.imax; i++)
+                {
+                    double u = primsLb(2, i, j, k);
+                    double v = primsLb(3, i, j, k);
+                    double w = primsLb(4, i, j, k);
+                    double u2 = u*u+v*v+w*w;
+                    umax = (umax<u2)?u2:umax;
+                }
+            }
+        }
+    }
+    return sqrt(umax);
 }
 
 #endif

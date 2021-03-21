@@ -3,6 +3,7 @@
 #include "InitialCondition.hpp"
 #include "PrimsCons.hpp"
 #include "Rhs.hpp"
+#include "OutputData.hpp"
 #include <chrono>
 using cmf::print;
 std::string GetInputFile(int argc, char** argv)
@@ -44,22 +45,33 @@ int main(int argc, char** argv)
 	InitialCondition(prims, rhs, params);
 	PrimsToCons(prims, cons, params);
 	double elapsedTime = 0.0;
+	bool isRoot = cmf::globalGroup.IsRoot();
 	for (int nt = 0; nt < params.maxStep; nt++)
 	{
 		auto start = std::chrono::high_resolution_clock::now();
+		ZeroRhs(rhs);
 		ComputeRhs(prims, cons, rhs, params);
 		Advance(cons, rhs, params);
+		double umax = UMax(prims);
 		ConsToPrims(prims, cons, params);
+		cmf::globalGroup.Synchronize();
 		cons.Exchange();
+		cmf::globalGroup.Synchronize();
 		prims.Exchange();
+		cmf::globalGroup.Synchronize();
 		auto finish = std::chrono::high_resolution_clock::now();
 		std::chrono::duration<double> elapsed = finish - start;
 		double timeMS = 1000*elapsed.count();
-		if (cmf::globalGroup.IsRoot())
+		if (isRoot) print("Timestep", nt, "\nElapsed:", timeMS, "ms", "\nUmax:", umax, "\n");
+		if (nt%params.outputInterval==0)
 		{
-			print("Timestep", nt, "\nElapsed:", timeMS, "ms");
+			OutputData(nt, prims);
 		}
         elapsedTime += timeMS;
+		if (umax>params.uLimit)
+		{
+			KILL;
+		}
 	}
 	return 0;
 }

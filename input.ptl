@@ -3,7 +3,7 @@ GlobalSettings
 {
     Display
     {
-        debugLevel = 1 // Level of debug output written to screen
+        debugLevel = 4 // Level of debug output written to screen
         trackOutputOrigins = false // Writes file and line number to screen along with output
     }
     Memory
@@ -20,11 +20,11 @@ Domain
     }
     Partition
     {
-        partitionType = uniform // The partitioning approach used to partition the Cartesian mesh :: Options: {uniform, unsupported}
+        partitionType = uniform // The partitioning approacsh used to partition the Cartesian mesh :: Options: {uniform, unsupported}
     }
     blockBounds = [0, 1, 0, 1, 0, 1] // Base block bounds
-    blockDim = [4, 4, 4] // Base block dimensions
-    meshDataDim = [16, 16, 16] // Dimensions of data
+    blockDim = [2, 2, 2] // Base block dimensions
+    meshDataDim = [64, 64, 64] // Dimensions of data
     periodicRefinement = [true, true, true] // Determines if the refinementConstraintType applies accross domain boundaries
     refinementConstraintType = factor2CompletelyConstrained // Determines how refinements are constrained :: Options: {free, factor2PartiallyConstrained, factor2CompletelyConstrained}
 }
@@ -32,5 +32,9 @@ Solver
 {
     gamma = 1.4 // Specific heat ratio
     cp = 3.5
-    deltaT = 1e-4
+    deltaT = 3e-4
+    maxStep = 20001
+    outputInterval = 1000
+    centOrder = 2
+    uLimit = 0.5
 }

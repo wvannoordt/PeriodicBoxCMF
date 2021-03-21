@@ -54,7 +54,7 @@ void PrimsToCons(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& cons, 
                     double Rgas = params.cp*(params.gamma - 1.0)/params.gamma;
                     double rho = p / (Rgas*T);
                     double rhoU2 = rho*(u*u+v*v+w*w);
-                    double rhoE = rhoU2 + (p/(rho*(params.gamma - 1.0)));
+                    double rhoE = rhoU2 + (p/((params.gamma - 1.0)));
                     double rhoU = rho*u;
                     double rhoV = rho*v;
                     double rhoW = rho*w;
