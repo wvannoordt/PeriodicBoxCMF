@@ -32,9 +32,9 @@ Solver
 {
     gamma = 1.4 // Specific heat ratio
     cp = 3.5
-    deltaT = 3e-4
-    maxStep = 20001
-    outputInterval = 1000
+    deltaT = 1e-4
+    maxStep = 100000
+    outputInterval = 5000
     centOrder = 2
     uLimit = 0.5
 }

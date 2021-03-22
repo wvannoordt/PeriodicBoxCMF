@@ -87,7 +87,7 @@ void ComputeRhs(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& cons, c
                                 C[0] += 2.0*centerCoef[l-1]*fg_QuadSplit(stencilData,jf+m,-l,4,5+idir);
                                 for (int idir_mom = 0; idir_mom < 3; idir_mom++)
                                 {
-                                    M[idir_mom      ] += 2.0*centerCoef[l-1]*fg_CubeSplit(stencilData,jf-m, l,4,5+idir,5+idir_mom);
+                                    M[idir_mom    ] += 2.0*centerCoef[l-1]*fg_CubeSplit(stencilData,jf-m, l,4,5+idir,5+idir_mom);
                                     M[idir_mom + 3] += 2.0*centerCoef[l-1]*fg_CubeSplit(stencilData,jf+m,-l,4,5+idir,5+idir_mom);
                                 }
 
@@ -114,11 +114,6 @@ void ComputeRhs(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& cons, c
                         rhsLb(3, i, j, k)      -= info.dxInv[idir]*(M[1] - M[4]);
                         rhsLb(4, i, j, k)      -= info.dxInv[idir]*(M[2] - M[5]);
                         rhsLb(2+idir, i, j, k) -= info.dxInv[idir]*(PGRAD[1] - PGRAD[0]);
-                        // if (cmf::globalGroup.IsRoot())
-                        // {
-                        //     std::cout << rhsLb(3, i, j, k) << std::endl;
-                        //     KILL
-                        // }
                     }
                 }
             }

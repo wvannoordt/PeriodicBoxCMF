@@ -6,11 +6,26 @@
 #include "OutputData.hpp"
 #include <chrono>
 using cmf::print;
+using cmf::strformat;
 std::string GetInputFile(int argc, char** argv)
 {
 	if (argc<=1) return "input.ptl";
 	std::string output(argv[1]);
 	return output;
+}
+
+std::string GetRemainingTime(int ntCurrent, int ntTotal, double elapsedTimeMs)
+{
+	int numStepsPassed = ntCurrent + 1;
+	int numStepsLeft = ntTotal - ntCurrent;
+	double avTimeMs = elapsedTimeMs/numStepsPassed;
+	double timeLeftMs = avTimeMs*numStepsLeft;
+	int hoursLeft = floor(timeLeftMs/(1000*3600));
+	timeLeftMs -= ((double)hoursLeft)*(1000*3600);
+	int minsLeft = floor(timeLeftMs/(1000*60));
+	timeLeftMs -= ((double)minsLeft)*(1000*60);
+	double secondsLeft = timeLeftMs/1000;
+	return strformat("{} h, {} m, {} s", hoursLeft, minsLeft, secondsLeft);
 }
 
 int main(int argc, char** argv)
@@ -46,7 +61,7 @@ int main(int argc, char** argv)
 	PrimsToCons(prims, cons, params);
 	double elapsedTime = 0.0;
 	bool isRoot = cmf::globalGroup.IsRoot();
-	for (int nt = 0; nt < params.maxStep; nt++)
+	for (int nt = 0; nt <= params.maxStep; nt++)
 	{
 		auto start = std::chrono::high_resolution_clock::now();
 		ZeroRhs(rhs);
@@ -62,7 +77,7 @@ int main(int argc, char** argv)
 		auto finish = std::chrono::high_resolution_clock::now();
 		std::chrono::duration<double> elapsed = finish - start;
 		double timeMS = 1000*elapsed.count();
-		if (isRoot) print("Timestep", nt, "\nElapsed:", timeMS, "ms", "\nUmax:", umax, "\n");
+		if (isRoot) print("Timestep", nt, "\nElapsed:", timeMS, "ms", "\nUmax:", umax, "\nRemaining time:", GetRemainingTime(nt, params.maxStep, elapsedTime), "\n");
 		if (nt%params.outputInterval==0)
 		{
 			OutputData(nt, prims);
