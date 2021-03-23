@@ -6,7 +6,9 @@ main: setup
 
 setup:
 	mkdir -p output
+	mkdir -p series
 
 clean:
 	rm -f program
 	rm -r output
+	rm -r series

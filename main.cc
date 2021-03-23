@@ -4,7 +4,63 @@
 #include "PrimsCons.hpp"
 #include "Rhs.hpp"
 #include "OutputData.hpp"
+#include "Integrate.hpp"
 #include <chrono>
+
+struct TimeSeries
+{
+	std::vector<double> times;
+	std::vector<double> values;
+	std::string filename;
+	int outputInterval;
+	int index;
+	TimeSeries(std::string filename_in, int outputInterval_in=1000)
+	{
+		std::ofstream outfile;
+		if (cmf::globalGroup.IsRoot())
+		{
+			outfile.open(filename.c_str());
+			outfile<<"";
+			outfile.close();
+		}
+		filename = filename_in;
+		outputInterval = outputInterval_in;
+		times.resize(outputInterval, 0.0);
+		values.resize(outputInterval, 0.0);
+		index = 0;
+	}
+	void Write()
+	{
+		if (cmf::globalGroup.IsRoot())
+		{
+			print("Output", filename);
+			std::ofstream outfile;
+			outfile.open(filename.c_str(), std::ios_base::app);
+			for (int i = 0; i < index; i++)
+			{
+				outfile << times[i] << ", " << values[i] << std::endl;
+			}
+			outfile.close();
+		}
+		index = 0;
+		cmf::globalGroup.Synchronize();
+	}
+	void AddEntry(double time, double val)
+	{
+		times[index] = time;
+		values[index] = val;
+		index++;
+		if (index==outputInterval)
+		{
+			Write();
+		}
+	}
+	~TimeSeries(void)
+	{
+		Write();
+	}
+};
+
 using cmf::print;
 using cmf::strformat;
 std::string GetInputFile(int argc, char** argv)
@@ -61,6 +117,8 @@ int main(int argc, char** argv)
 	PrimsToCons(prims, cons, params);
 	double elapsedTime = 0.0;
 	bool isRoot = cmf::globalGroup.IsRoot();
+	double time = 0;
+	TimeSeries enstrophySeries("series/enstrophy.csv", 50);
 	for (int nt = 0; nt <= params.maxStep; nt++)
 	{
 		auto start = std::chrono::high_resolution_clock::now();
@@ -74,10 +132,11 @@ int main(int argc, char** argv)
 		cmf::globalGroup.Synchronize();
 		prims.Exchange();
 		cmf::globalGroup.Synchronize();
+		double integratedEnstrophy = Enstrophy(prims);
 		auto finish = std::chrono::high_resolution_clock::now();
 		std::chrono::duration<double> elapsed = finish - start;
 		double timeMS = 1000*elapsed.count();
-		if (isRoot) print("Timestep", nt, "\nElapsed:", timeMS, "ms", "\nUmax:", umax, "\nRemaining time:", GetRemainingTime(nt, params.maxStep, elapsedTime), "\n");
+		if (isRoot) print("Timestep", nt, "\nElapsed:", timeMS, "ms", "\nUmax:", umax, "\nRemaining time:", GetRemainingTime(nt, params.maxStep, elapsedTime), "\nEnstrophy:", integratedEnstrophy, "\nTime:", time, "\n");
 		if (nt%params.outputInterval==0)
 		{
 			OutputData(nt, prims);
@@ -87,6 +146,8 @@ int main(int argc, char** argv)
 		{
 			KILL;
 		}
+		time += params.deltaT;
+		enstrophySeries.AddEntry(time, integratedEnstrophy);
 	}
 	return 0;
 }
