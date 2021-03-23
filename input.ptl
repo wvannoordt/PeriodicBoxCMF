@@ -36,6 +36,6 @@ Solver
     maxStep = 100000
     // maxStep = 75
     outputInterval = 5000
-    centOrder = 2
+    centOrder = 4
     uLimit = 0.5
 }
