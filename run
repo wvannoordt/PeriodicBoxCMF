@@ -1,0 +1,3 @@
+mkdir -p output
+mkdir -p series
+mpirun -np 8 pbc

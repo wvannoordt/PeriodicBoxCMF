@@ -122,7 +122,7 @@ void ComputeRhs(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& cons, c
     }
 }
 
-void Advance(cmf::CartesianMeshArray& cons, cmf::CartesianMeshArray& rhs, InputParams& params)
+void Advance(cmf::CartesianMeshArray& cons, cmf::CartesianMeshArray& rhs, cmf::CartesianMeshArray& consRKTemp, cmf::CartesianMeshArray& rhsRKTemp, InputParams& params)
 {
     for (auto lb: cons)
     {
@@ -143,6 +143,53 @@ void Advance(cmf::CartesianMeshArray& cons, cmf::CartesianMeshArray& rhs, InputP
             }
         }
     }
+}
+
+void AEqualsBXPlusC(cmf::CartesianMeshArray& a, double b, cmf::CartesianMeshArray& x, cmf::CartesianMeshArray& c)
+{
+    for (auto lb: a)
+    {
+        cmf::BlockArray<double, 1> aLb = a[lb];
+        cmf::BlockArray<double, 1> xLb = x[lb];
+        cmf::BlockArray<double, 1> cLb = c[lb];
+        for (cmf::cell_t k = cLb.kmin; k < cLb.kmax; k++)
+        {
+            for (cmf::cell_t j = cLb.jmin; j < cLb.jmax; j++)
+            {
+                for (cmf::cell_t i = cLb.imin; i < cLb.imax; i++)
+                {
+                    aLb(0, i, j, k) = b*xLb(0, i, j, k) + cLb(0, i, j, k);
+                    aLb(1, i, j, k) = b*xLb(1, i, j, k) + cLb(1, i, j, k);
+                    aLb(2, i, j, k) = b*xLb(2, i, j, k) + cLb(2, i, j, k);
+                    aLb(3, i, j, k) = b*xLb(3, i, j, k) + cLb(3, i, j, k);
+                    aLb(4, i, j, k) = b*xLb(4, i, j, k) + cLb(4, i, j, k);
+                }
+            }
+        }
+    }
+}
+
+void PlusEqualsKX(cmf::CartesianMeshArray& a, double kd, cmf::CartesianMeshArray& x)
+{
+    for (auto lb: a)
+    {
+        cmf::BlockArray<double, 1> aLb = a[lb];
+        cmf::BlockArray<double, 1> xLb = x[lb];
+        for (cmf::cell_t k = aLb.kmin; k < aLb.kmax; k++)
+        {
+            for (cmf::cell_t j = aLb.jmin; j < aLb.jmax; j++)
+            {
+                for (cmf::cell_t i = aLb.imin; i < aLb.imax; i++)
+                {
+                    aLb(0, i, j, k) += kd*xLb(0, i, j, k);
+                    aLb(1, i, j, k) += kd*xLb(1, i, j, k);
+                    aLb(2, i, j, k) += kd*xLb(2, i, j, k);
+                    aLb(3, i, j, k) += kd*xLb(3, i, j, k);
+                    aLb(4, i, j, k) += kd*xLb(4, i, j, k);
+                }
+            }
+        }
+    }    
 }
 
 void ZeroRhs(cmf::CartesianMeshArray& rhs)
@@ -172,11 +219,11 @@ double UMax(cmf::CartesianMeshArray& prims)
     for (auto lb: prims)
     {
         cmf::BlockArray<double, 1> primsLb  = prims[lb];
-        for (cmf::cell_t k = primsLb.kmin; k < primsLb.kmax; k++)
+        for (cmf::cell_t k = primsLb.kmin - primsLb.exchangeK; k < primsLb.kmax + primsLb.exchangeK; k++)
         {
-            for (cmf::cell_t j = primsLb.jmin; j < primsLb.jmax; j++)
+            for (cmf::cell_t j = primsLb.jmin - primsLb.exchangeJ; j < primsLb.jmax + primsLb.exchangeJ; j++)
             {
-                for (cmf::cell_t i = primsLb.imin; i < primsLb.imax; i++)
+                for (cmf::cell_t i = primsLb.imin - primsLb.exchangeI; i < primsLb.imax + primsLb.exchangeI; i++)
                 {
                     double u = primsLb(2, i, j, k);
                     double v = primsLb(3, i, j, k);
