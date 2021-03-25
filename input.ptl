@@ -22,7 +22,7 @@ Domain
     {
         partitionType = uniform // The partitioning approacsh used to partition the Cartesian mesh :: Options: {uniform, unsupported}
     }
-    blockBounds = [0, 1, 0, 1, 0, 1] // Base block bounds
+    blockBounds = [-0.05, 0.05, -0.05, 0.05, -0.05, 0.05] // Base block bounds
     blockDim = [2, 2, 2] // Base block dimensions
     meshDataDim = [64, 64, 64] // Dimensions of data
     periodicRefinement = [true, true, true] // Determines if the refinementConstraintType applies accross domain boundaries
@@ -31,10 +31,13 @@ Domain
 Solver
 {
     gamma = 1.4 // Specific heat ratio
-    cp = 3.5
-    deltaT = 1.8e-3
-    maxStep = 100000
-    outputInterval = 1000
+    cp = 1005.0
+    // deltaT = 0.2975585e-06
+    deltaT = 0.2975585e-07
+    maxStep = 50000
+    outputInterval = 500
     centOrder = 4
-    uLimit = 12.5
+    uLimit = 1250.0
+    useRK4 = false
+    guardOutput = true
 }

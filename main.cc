@@ -122,8 +122,9 @@ int main(int argc, char** argv)
 	cons.ComponentName({3}) = "RhoV";
 	cons.ComponentName({4}) = "RhoW";
 	
-	InitialCondition(prims, rhs, params);
+	InitialConditionVort(prims, rhs, params);
 	PrimsToCons(prims, cons, params);
+	OutputData(0, prims, params);
 	double elapsedTime = 0.0;
 	bool isRoot = cmf::globalGroup.IsRoot();
 	double time = 0;
@@ -131,49 +132,58 @@ int main(int argc, char** argv)
 	for (int nt = 0; nt <= params.maxStep; nt++)
 	{
 		auto start = std::chrono::high_resolution_clock::now();
-		
-		ZeroRhs(rhs);
-		ZeroRhs(c1);
-		ZeroRhs(c2);
-		ZeroRhs(c3);
-		
-		ZeroRhs(k1);
-		ZeroRhs(k2);
-		ZeroRhs(k3);
-		ZeroRhs(k4);
-		
 		double umax = UMax(prims);
-		
-		ComputeRhs(prims, cons, k1, params);
-		PlusEqualsKX(rhs, params.deltaT/6.0, k1);
-		PlusEqualsKX(c1, 1.0, cons);
-		PlusEqualsKX(c1, 0.5*params.deltaT, k1);
-		
-		c1.Exchange();
-		ConsToPrims(prims, c1, params);
-		
-		ComputeRhs(prims, c1, k2, params);
-		PlusEqualsKX(rhs, params.deltaT/3.0, k2);
-		PlusEqualsKX(c2, 1.0, cons);
-		PlusEqualsKX(c2, 0.5*params.deltaT, k2);
-		
-		c2.Exchange();
-		ConsToPrims(prims, c2, params);
-		
-		ComputeRhs(prims, c2, k3, params);
-		PlusEqualsKX(rhs, params.deltaT/3.0, k3);
-		PlusEqualsKX(c3, 1.0, cons);
-		PlusEqualsKX(c3, 0.5*params.deltaT, k3);
-		
-		c3.Exchange();
-		ConsToPrims(prims, c3, params);
-		
-		ComputeRhs(prims, c3, k4, params);
-		PlusEqualsKX(rhs, params.deltaT/6.0, k4);
-		
-		PlusEqualsKX(cons, 1.0, rhs);
-		cons.Exchange();
-		ConsToPrims(prims, cons, params);
+		ZeroRhs(rhs);
+		if (params.useRK4)
+		{
+			ZeroRhs(c1);
+			ZeroRhs(c2);
+			ZeroRhs(c3);
+			
+			ZeroRhs(k1);
+			ZeroRhs(k2);
+			ZeroRhs(k3);
+			ZeroRhs(k4);
+			
+			ComputeRhs(prims, cons, k1, params);
+			PlusEqualsKX(rhs, params.deltaT/6.0, k1);
+			PlusEqualsKX(c1, 1.0, cons);
+			PlusEqualsKX(c1, 0.5*params.deltaT, k1);
+			
+			c1.Exchange();
+			ConsToPrims(prims, c1, params);
+			
+			ComputeRhs(prims, c1, k2, params);
+			PlusEqualsKX(rhs, params.deltaT/3.0, k2);
+			PlusEqualsKX(c2, 1.0, cons);
+			PlusEqualsKX(c2, 0.5*params.deltaT, k2);
+			
+			c2.Exchange();
+			ConsToPrims(prims, c2, params);
+			
+			ComputeRhs(prims, c2, k3, params);
+			PlusEqualsKX(rhs, params.deltaT/3.0, k3);
+			PlusEqualsKX(c3, 1.0, cons);
+			PlusEqualsKX(c3, 0.5*params.deltaT, k3);
+			
+			c3.Exchange();
+			ConsToPrims(prims, c3, params);
+			
+			ComputeRhs(prims, c3, k4, params);
+			PlusEqualsKX(rhs, params.deltaT/6.0, k4);
+			
+			PlusEqualsKX(cons, 1.0, rhs);
+			cons.Exchange();
+			ConsToPrims(prims, cons, params);
+		}
+		else
+		{
+			ComputeRhs(prims, cons, rhs, params);
+			PlusEqualsKX(cons, params.deltaT, rhs);
+			cons.Exchange();
+			ConsToPrims(prims, cons, params);
+			prims.Exchange();
+		}
 		
 		double integratedEnstrophy = Enstrophy(prims);
 		auto finish = std::chrono::high_resolution_clock::now();
@@ -181,9 +191,9 @@ int main(int argc, char** argv)
 		double timeMS = 1000*elapsed.count();
 		
 		if (isRoot) print("Timestep", nt, "\nElapsed:", timeMS, "ms", "\nUmax:", umax, "\nRemaining time:", GetRemainingTime(nt, params.maxStep, elapsedTime), "\nEnstrophy:", integratedEnstrophy, "\nTime:", time, "\n");
-		if (nt%params.outputInterval==0)
+		if (nt%params.outputInterval==0 && nt > 0)
 		{
-			OutputData(nt, prims);
+			OutputData(nt, prims, params);
 		}
         elapsedTime += timeMS;
 		if (!(umax<params.uLimit))

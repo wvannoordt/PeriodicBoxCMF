@@ -2,11 +2,14 @@
 #define OUTPUT_DATA_HPP
 
 #include "cmf.h"
+#include "InputParams.h"
 using cmf::ZFill;
 using cmf::strformat;
 using cmf::print;
-void OutputData(int nt, cmf::CartesianMeshArray& array)
+void OutputData(int nt, cmf::CartesianMeshArray& array, InputParams& params)
 {
+    int iGuards = params.guardOutput?1:0;
+    double multGuard = 1.0 + iGuards;
     for (int process = 0; process < cmf::globalGroup.Size(); process++)
     {
         if (cmf::globalGroup.Rank()==process)
@@ -26,16 +29,16 @@ void OutputData(int nt, cmf::CartesianMeshArray& array)
                 myfile << "ASCII" << std::endl;
                 myfile << "DATASET STRUCTURED_POINTS" << std::endl;
                 myfile << "DIMENSIONS ";
-                int ni = block.imax - block.imin;
-                int nj = block.jmax - block.jmin;
-                int nk = block.kmax - block.kmin;
+                int ni = block.imax - block.imin + 2*iGuards*block.exchangeI;
+                int nj = block.jmax - block.jmin + 2*iGuards*block.exchangeJ;
+                int nk = block.kmax - block.kmin + 2*iGuards*block.exchangeK;
                 myfile << (ni+1) << " ";
                 myfile << (nj+1) << " ";
                 myfile << (nk+1) << std::endl;
                 
                 double origin[3] = {0.0};
                 double spacing[3] = {1.0};
-                for (int i = 0; i < 3; i++) origin[i] = info.blockBounds[2*i];
+                for (int i = 0; i < 3; i++) origin[i] = multGuard*info.blockBounds[2*i];
                 for (int i = 0; i < 3; i++) spacing[i] = info.dx[i];
                 
                 myfile << "ORIGIN "  << origin[0]  << " " << origin[1]  << " " << origin[2]  << std::endl;
@@ -45,11 +48,11 @@ void OutputData(int nt, cmf::CartesianMeshArray& array)
                 {
                     myfile << "SCALARS " << array.ComponentName({var}) << " double"  << std::endl;
                     myfile << "LOOKUP_TABLE default" << std::endl;
-                    for (cmf::cell_t k = block.kmin; k < block.kmax; k++)
+                    for (cmf::cell_t k = block.kmin-iGuards*block.exchangeK; k < block.kmax+iGuards*block.exchangeK; k++)
                     {
-                        for (cmf::cell_t j = block.jmin; j < block.jmax; j++)
+                        for (cmf::cell_t j = block.jmin-iGuards*block.exchangeJ; j < block.jmax+iGuards*block.exchangeJ; j++)
                         {
-                            for (cmf::cell_t i = block.imin; i < block.imax; i++)
+                            for (cmf::cell_t i = block.imin-iGuards*block.exchangeI; i < block.imax+iGuards*block.exchangeI; i++)
                             {
                                 myfile << block(var, i, j, k) << std::endl;
                             }
