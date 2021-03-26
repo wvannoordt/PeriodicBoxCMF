@@ -3,12 +3,16 @@
 #include "cmf.h"
 #include "InputParams.h"
 #include "util.h"
+
+using cmf::face_t;
+using cmf::cell_t;
+
 #define stencilIdx(v,j) ((v)+(5+3)*(j))
 #define f_DivSplit(q,j,l,v1)         (0.500*(q[stencilIdx((v1),(j))] + q[stencilIdx((v1),(j)+(l))]))
 #define fg_QuadSplit(q,j,l,v1,v2)    (0.250*(q[stencilIdx((v1),(j))] + q[stencilIdx((v1),(j)+(l))])*(q[stencilIdx((v2),(j))] + q[stencilIdx((v2),(j)+(l))]))
 #define fg_CubeSplit(q,j,l,v1,v2,v3) (0.125*(q[stencilIdx((v1),(j))] + q[stencilIdx((v1),(j)+(l))])*(q[stencilIdx((v2),(j))] + q[stencilIdx((v2),(j)+(l))])*(q[stencilIdx((v3),(j))] + q[stencilIdx((v3),(j)+(l))]))
 #define fg_DivSplit(q,j,l,v1,v2)     (0.500*((q[stencilIdx((v1),(j)+(l))]*q[stencilIdx((v2),(j))]) + (q[stencilIdx((v1),(j))]*q[stencilIdx((v2),(j)+(l))])))
-void ComputeRhs(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& cons, cmf::CartesianMeshArray& rhs, InputParams& params)
+void ComputeConv(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& cons, cmf::CartesianMeshArray& rhs, InputParams& params)
 {
     double centerCoef[4] = {0.0};
     switch (params.centOrder)
@@ -120,6 +124,68 @@ void ComputeRhs(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& cons, c
             dijk[idir] = 0;
         }
     }
+}
+
+void ComputeVisc(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& cons, cmf::CartesianMeshArray& rhs, InputParams& params)
+{
+    double beta = 0.0;
+    for (auto lb: prims)
+    {
+        cmf::BlockArray<double, 1> primsLb = prims[lb];
+        cmf::BlockArray<double, 1> consLb  = cons[lb];
+        cmf::BlockArray<double, 1> rhsLb  = rhs[lb];
+        
+        cmf::BlockInfo info = rhs.Mesh()->GetBlockInfo(lb);
+        
+        double fluxLRAr[10];
+        cmf::MdArray<double, 1> fluxLeft (&fluxLRAr[0], 5);
+        cmf::MdArray<double, 1> fluxRight(&fluxLRAr[5], 5);
+        
+        for (int idir = 0; idir < 3; idir++)
+        {
+            face_t idxFaceMin = -1;
+            face_t idxFaceMax = info.dataDim[idir];
+            
+            cell_t idx1Min = 0;
+            cell_t idx1Max = info.dataDim[(idir+1)%3];
+            
+            cell_t idx2Min = 0;
+            cell_t idx2Max = info.dataDim[(idir+2)%3];
+            
+            for (cell_t idx1 = idx1Min; idx1 < idx1Max; idx1++)
+            {
+                for (cell_t idx2 = idx2Min; idx2 < idx2Max; idx2++)
+                {
+                    for (face_t idxFace = idxFaceMin; idxFace < idxFaceMax; idxFace++)
+                    {
+                        face_t ijkFace[3] = {0};
+                        cell_t ijkCellR[3] = {0};
+                        cell_t ijkCellL[3] = {0};
+                        
+                        ijkFace[idir] = idxFace;
+                        ijkFace[(idir+1)%3] = idx1;
+                        ijkFace[(idir+2)%3] = idx2;
+                        
+                        for (int v = 0; v < 3; v++)
+                        {
+                            ijkCellR[v] = ijkFace[v];
+                            ijkCellL[v] = ijkFace[v];
+                        }
+                        ijkCellR[idir]++;
+                        fluxLeft (1) = 0.0;
+                        fluxRight(1) = 0.0;
+                        
+                    }
+                }
+            }
+        }
+    }
+}
+
+void ComputeRhs(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& cons, cmf::CartesianMeshArray& rhs, InputParams& params)
+{
+    ComputeConv(prims, cons, rhs, params);
+    ComputeVisc(prims, cons, rhs, params);
 }
 
 void Advance(cmf::CartesianMeshArray& cons, cmf::CartesianMeshArray& rhs, cmf::CartesianMeshArray& consRKTemp, cmf::CartesianMeshArray& rhsRKTemp, InputParams& params)

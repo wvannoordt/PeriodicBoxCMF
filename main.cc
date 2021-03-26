@@ -122,6 +122,24 @@ int main(int argc, char** argv)
 	cons.ComponentName({3}) = "RhoV";
 	cons.ComponentName({4}) = "RhoW";
 	
+	switch(params.cfdCase)
+	{
+		case CFDCase::TGV:
+		{
+			InitialConditionTgv(prims, rhs, params);
+			break;
+		}
+		case CFDCase::IsentropicVortex:
+		{
+			InitialConditionVort(prims, rhs, params);
+			break;
+		}
+		default: 
+		{
+			print("Bad case");
+			KILL;
+		}
+	}
 	InitialConditionVort(prims, rhs, params);
 	PrimsToCons(prims, cons, params);
 	OutputData(0, prims, params);

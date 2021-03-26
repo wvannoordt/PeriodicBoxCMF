@@ -31,13 +31,15 @@ Domain
 Solver
 {
     gamma = 1.4 // Specific heat ratio
-    cp = 1005.0
-    // deltaT = 0.2975585e-06
-    deltaT = 0.2975585e-07
+    cp = 3.5
+    deltaT = 1e-4
     maxStep = 50000
     outputInterval = 500
     centOrder = 4
-    uLimit = 1250.0
-    useRK4 = false
+    uLimit = 15.0
+    useRK4 = true
     guardOutput = true
+    viscosity = 0.000625
+    cfdCase = TGV
+    prandtl = 0.72
 }
