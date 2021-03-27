@@ -43,4 +43,35 @@ double Enstrophy(cmf::CartesianMeshArray& prims)
     return integratedEnstrophyGlobal;
 }
 
+double KineticEnergy(cmf::CartesianMeshArray& prims, InputParams& params)
+{
+    double integratedKELocal = 0.0;
+    for (auto lb: prims)
+    {
+        cmf::BlockArray<double, 1> primsLb = prims[lb];
+        cmf::BlockInfo info = prims.Mesh()->GetBlockInfo(lb);
+        double dx = info.dx[0];
+        double dy = info.dx[1];
+        double dz = info.dx[2];
+        for (cmf::cell_t k = primsLb.kmin; k < primsLb.kmax; k++)
+        {
+            for (cmf::cell_t j = primsLb.jmin; j < primsLb.jmax; j++)
+            {
+                for (cmf::cell_t i = primsLb.imin; i < primsLb.imax; i++)
+                {
+                    double Rgas = params.cp*(params.gamma - 1.0)/params.gamma;
+                    double rho = primsLb(0, i, j, k)/(Rgas*primsLb(1, i, j, k));
+                    double u   = primsLb(3, i, j, k);
+                    double v   = primsLb(4, i, j, k);
+                    double w   = primsLb(4, i, j, k);
+                    
+                    integratedKELocal += 0.5*rho*(u*u + v*v + w*w)*dx*dy*dz;
+                }
+            }
+        }
+    }
+    double integratedKELocalGlobal = cmf::globalGroup.Sum(integratedKELocal);
+    return integratedKELocalGlobal;
+}
+
 #endif

@@ -22,9 +22,9 @@ Domain
     {
         partitionType = uniform // The partitioning approacsh used to partition the Cartesian mesh :: Options: {uniform, unsupported}
     }
-    blockBounds = [-0.05, 0.05, -0.05, 0.05, -0.05, 0.05] // Base block bounds
+    blockBounds = [0, 1, 0, 1, 0, 1] // Base block bounds
     blockDim = [2, 2, 2] // Base block dimensions
-    meshDataDim = [64, 64, 64] // Dimensions of data
+    meshDataDim = [48, 48, 48] // Dimensions of data
     periodicRefinement = [true, true, true] // Determines if the refinementConstraintType applies accross domain boundaries
     refinementConstraintType = factor2CompletelyConstrained // Determines how refinements are constrained :: Options: {free, factor2PartiallyConstrained, factor2CompletelyConstrained}
 }
@@ -32,14 +32,16 @@ Solver
 {
     gamma = 1.4 // Specific heat ratio
     cp = 3.5
-    deltaT = 1e-4
+    CFL = 0.6
+    maxCFL = 5.0
     maxStep = 50000
-    outputInterval = 500
+    outputInterval = 1000
     centOrder = 4
     uLimit = 15.0
     useRK4 = true
-    guardOutput = true
+    guardOutput = false
     viscosity = 0.000625
     cfdCase = TGV
     prandtl = 0.72
+    viscous = false
 }

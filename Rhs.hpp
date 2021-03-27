@@ -141,41 +141,114 @@ void ComputeVisc(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& cons, 
         cmf::MdArray<double, 1> fluxLeft (&fluxLRAr[0], 5);
         cmf::MdArray<double, 1> fluxRight(&fluxLRAr[5], 5);
         
+        double velGradArr[18];
+        cmf::MdArray<double, 2> velGradLeft (&velGradArr[0], 3, 3);
+        cmf::MdArray<double, 2> velGradRight(&velGradArr[9], 3, 3);
+        
         for (int idir = 0; idir < 3; idir++)
         {
-            face_t idxFaceMin = -1;
-            face_t idxFaceMax = info.dataDim[idir];
-            
-            cell_t idx1Min = 0;
-            cell_t idx1Max = info.dataDim[(idir+1)%3];
-            
-            cell_t idx2Min = 0;
-            cell_t idx2Max = info.dataDim[(idir+2)%3];
-            
-            for (cell_t idx1 = idx1Min; idx1 < idx1Max; idx1++)
+            int dir1 = (idir+1) % 3;
+            int dir2 = (idir+2) % 3;
+            cell_t ijkCell[3] = {0};
+            cell_t ijkCellR[3] = {0};
+            cell_t ijkCellL[3] = {0};
+            int dijk1[3] = {0};
+            int dijk2[3] = {0};
+            dijk1[dir1] = 1;
+            dijk2[dir2] = 1;
+            for (cell_t k = primsLb.kmin; k < primsLb.kmax; k++)
             {
-                for (cell_t idx2 = idx2Min; idx2 < idx2Max; idx2++)
+                for (cell_t j = primsLb.jmin; j < primsLb.jmax; j++)
                 {
-                    for (face_t idxFace = idxFaceMin; idxFace < idxFaceMax; idxFace++)
+                    for (cell_t i = primsLb.imin; i < primsLb.imax; i++)
                     {
-                        face_t ijkFace[3] = {0};
-                        cell_t ijkCellR[3] = {0};
-                        cell_t ijkCellL[3] = {0};
+                        ijkCell[0]  = i;
+                        ijkCellR[0] = i;
+                        ijkCellL[0] = i;
+                        ijkCell[1]  = j;
+                        ijkCellR[1] = j;
+                        ijkCellL[1] = j;
+                        ijkCell[2]  = k;
+                        ijkCellR[2] = k;
+                        ijkCellL[2] = k;
                         
-                        ijkFace[idir] = idxFace;
-                        ijkFace[(idir+1)%3] = idx1;
-                        ijkFace[(idir+2)%3] = idx2;
-                        
-                        for (int v = 0; v < 3; v++)
-                        {
-                            ijkCellR[v] = ijkFace[v];
-                            ijkCellL[v] = ijkFace[v];
-                        }
                         ijkCellR[idir]++;
-                        fluxLeft (1) = 0.0;
-                        fluxRight(1) = 0.0;
+                        ijkCellL[idir]--;
                         
-                    }
+                        double u_UR, u_UL, u_LR, u_LL;
+                        for (int uvw = 0; uvw < 3; uvw++)
+                        {
+                            velGradLeft (uvw, idir) = info.dxInv[idir]*(primsLb(2+uvw, ijkCell[0],  ijkCell[1],  ijkCell[2]) -primsLb(2+uvw, ijkCellL[0], ijkCellL[1], ijkCellL[2]));
+                            velGradRight(uvw, idir) = info.dxInv[idir]*(primsLb(2+uvw, ijkCellR[0], ijkCellR[1], ijkCellR[2])-primsLb(2+uvw, ijkCell[0],  ijkCell[1],  ijkCell[2]));
+                            
+                            //left, dir1
+                            u_UR = primsLb(2+uvw, ijkCell [0] + dijk1[0],  ijkCell [1] + dijk1[1],  ijkCell [2] + dijk1[2]);
+                            u_UL = primsLb(2+uvw, ijkCellL[0] + dijk1[0],  ijkCellL[1] + dijk1[1],  ijkCellL[2] + dijk1[2]);
+                            u_LR = primsLb(2+uvw, ijkCell [0] - dijk1[0],  ijkCell [1] - dijk1[1],  ijkCell [2] - dijk1[2]);
+                            u_LL = primsLb(2+uvw, ijkCellL[0] - dijk1[0],  ijkCellL[1] - dijk1[1],  ijkCellL[2] - dijk1[2]);
+                            velGradLeft (uvw, dir1) = 0.25*info.dxInv[dir1]*(u_UR + u_LR - u_UL - u_LL);
+                            
+                            //left, dir2
+                            u_UR = primsLb(2+uvw, ijkCell [0] + dijk2[0],  ijkCell [1] + dijk2[1],  ijkCell [2] + dijk2[2]);
+                            u_UL = primsLb(2+uvw, ijkCellL[0] + dijk2[0],  ijkCellL[1] + dijk2[1],  ijkCellL[2] + dijk2[2]);
+                            u_LR = primsLb(2+uvw, ijkCell [0] - dijk2[0],  ijkCell [1] - dijk2[1],  ijkCell [2] - dijk2[2]);
+                            u_LL = primsLb(2+uvw, ijkCellL[0] - dijk2[0],  ijkCellL[1] - dijk2[1],  ijkCellL[2] - dijk2[2]);
+                            velGradLeft (uvw, dir2) = 0.25*info.dxInv[dir2]*(u_UR + u_LR - u_UL - u_LL);
+                            
+                            //right, dir1
+                            u_UR = primsLb(2+uvw, ijkCellR[0] + dijk1[0],  ijkCellR[1] + dijk1[1],  ijkCellR[2] + dijk1[2]);
+                            u_UL = primsLb(2+uvw, ijkCell [0] + dijk1[0],  ijkCell [1] + dijk1[1],  ijkCell [2] + dijk1[2]);
+                            u_LR = primsLb(2+uvw, ijkCellR[0] - dijk1[0],  ijkCellR[1] - dijk1[1],  ijkCellR[2] - dijk1[2]);
+                            u_LL = primsLb(2+uvw, ijkCell [0] - dijk1[0],  ijkCell [1] - dijk1[1],  ijkCell [2] - dijk1[2]);
+                            velGradRight(uvw, dir1) = 0.25*info.dxInv[dir1]*(u_UR + u_LR - u_UL - u_LL);
+                            
+                            //right, dir2
+                            u_UR = primsLb(2+uvw, ijkCellR[0] + dijk2[0],  ijkCellR[1] + dijk2[1],  ijkCellR[2] + dijk2[2]);
+                            u_UL = primsLb(2+uvw, ijkCell [0] + dijk2[0],  ijkCell [1] + dijk2[1],  ijkCell [2] + dijk2[2]);
+                            u_LR = primsLb(2+uvw, ijkCellR[0] - dijk2[0],  ijkCellR[1] - dijk2[1],  ijkCellR[2] - dijk2[2]);
+                            u_LL = primsLb(2+uvw, ijkCell [0] - dijk2[0],  ijkCell [1] - dijk2[1],  ijkCell [2] - dijk2[2]);
+                            velGradRight(uvw, dir2) = 0.25*info.dxInv[dir2]*(u_UR + u_LR - u_UL - u_LL);
+                        }
+                        
+                        double tempGradLeft  = info.dxInv[idir]*(primsLb(1, ijkCell [0], ijkCell [1], ijkCell [2]) - primsLb(1, ijkCellL[0], ijkCellL[1], ijkCellL[2]));
+                        double tempGradRight = info.dxInv[idir]*(primsLb(1, ijkCellR[0], ijkCellR[1], ijkCellR[2]) - primsLb(1, ijkCell [0], ijkCell [1], ijkCell[2]));
+                        double uLeft[3] = {0};
+                        double uRight[3] = {0};
+                        double divLeft = 0;
+                        double divRight = 0;
+                        for (int d = 0; d < 3; d++)
+                        {
+                            uLeft[d]  = 0.5*(primsLb(2+d, ijkCell [0], ijkCell [1], ijkCell [2]) + primsLb(2+d, ijkCellL[0], ijkCellL[1], ijkCellL[2]));
+                            uRight[d] = 0.5*(primsLb(2+d, ijkCellR[0], ijkCellR[1], ijkCellR[2]) + primsLb(2+d, ijkCell [0], ijkCell [1], ijkCell[2]));
+                            divLeft  += velGradLeft (d, d);
+                            divRight += velGradRight(d, d);
+                        }
+                        
+                        fluxLeft (0) = 0.0;
+                        fluxLeft (1) = (params.viscosity / params.prandtl) * tempGradLeft;
+                        fluxLeft (2) = params.viscosity*(velGradLeft(1, idir) + velGradLeft(idir, 1));
+                        fluxLeft (3) = params.viscosity*(velGradLeft(2, idir) + velGradLeft(idir, 2));
+                        fluxLeft (4) = params.viscosity*(velGradLeft(3, idir) + velGradLeft(idir, 3));
+                        fluxLeft (2+idir) -= 0.666666666667*params.viscosity*divLeft;
+                        
+                        
+                        fluxRight(0) = 0.0;
+                        fluxRight(1) = (params.viscosity / params.prandtl) * tempGradRight;
+                        fluxRight(2) = params.viscosity*(velGradRight(1, idir) + velGradRight(idir, 1));
+                        fluxRight(3) = params.viscosity*(velGradRight(2, idir) + velGradRight(idir, 2));
+                        fluxRight(4) = params.viscosity*(velGradRight(3, idir) + velGradRight(idir, 3));
+                        fluxRight(2+idir) -= 0.666666666667*params.viscosity*divRight;
+                        
+                        for (int d = 0; d < 3; d++)
+                        {
+                            fluxLeft (1) +=uLeft[d] *fluxLeft (2+d);
+                            fluxRight(1) +=uRight[d]*fluxRight(2+d);
+                        }
+                        for (int v = 0; v < 5; v++)
+                        {
+                            rhsLb(v, i, j, k) += info.dxInv[idir]*(fluxRight(v) - fluxLeft(v));
+                        }
+                    }                    
                 }
             }
         }
@@ -185,7 +258,10 @@ void ComputeVisc(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& cons, 
 void ComputeRhs(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& cons, cmf::CartesianMeshArray& rhs, InputParams& params)
 {
     ComputeConv(prims, cons, rhs, params);
-    ComputeVisc(prims, cons, rhs, params);
+    if (params.viscous)
+    {
+        ComputeVisc(prims, cons, rhs, params);
+    }
 }
 
 void Advance(cmf::CartesianMeshArray& cons, cmf::CartesianMeshArray& rhs, cmf::CartesianMeshArray& consRKTemp, cmf::CartesianMeshArray& rhsRKTemp, InputParams& params)
@@ -300,7 +376,8 @@ double UMax(cmf::CartesianMeshArray& prims)
             }
         }
     }
-    return sqrt(umax);
+    double um = sqrt(umax);
+    return cmf::globalGroup.Max(um);
 }
 
 #endif

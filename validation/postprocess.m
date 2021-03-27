@@ -2,7 +2,7 @@ clear
 clc
 close all
 
-data = csvread('../series/enstrophy.csv');
+data = csvread('../series/kinetic.csv');
 %compdata = csvread('reference.csv');
 figure
 hold on

@@ -5,6 +5,7 @@
 #include "Rhs.hpp"
 #include "OutputData.hpp"
 #include "Integrate.hpp"
+#include "GetTimestep.hpp"
 #include <chrono>
 
 struct TimeSeries
@@ -140,13 +141,17 @@ int main(int argc, char** argv)
 			KILL;
 		}
 	}
-	InitialConditionVort(prims, rhs, params);
 	PrimsToCons(prims, cons, params);
 	OutputData(0, prims, params);
 	double elapsedTime = 0.0;
 	bool isRoot = cmf::globalGroup.IsRoot();
+	
+	double deltaT = GetTimestep(prims, params);
+	
+	
 	double time = 0;
 	TimeSeries enstrophySeries("series/enstrophy.csv", 50);
+	TimeSeries energySeries("series/kinetic.csv", 50);
 	for (int nt = 0; nt <= params.maxStep; nt++)
 	{
 		auto start = std::chrono::high_resolution_clock::now();
@@ -164,31 +169,31 @@ int main(int argc, char** argv)
 			ZeroRhs(k4);
 			
 			ComputeRhs(prims, cons, k1, params);
-			PlusEqualsKX(rhs, params.deltaT/6.0, k1);
+			PlusEqualsKX(rhs, deltaT/6.0, k1);
 			PlusEqualsKX(c1, 1.0, cons);
-			PlusEqualsKX(c1, 0.5*params.deltaT, k1);
+			PlusEqualsKX(c1, 0.5*deltaT, k1);
 			
 			c1.Exchange();
 			ConsToPrims(prims, c1, params);
 			
 			ComputeRhs(prims, c1, k2, params);
-			PlusEqualsKX(rhs, params.deltaT/3.0, k2);
+			PlusEqualsKX(rhs, deltaT/3.0, k2);
 			PlusEqualsKX(c2, 1.0, cons);
-			PlusEqualsKX(c2, 0.5*params.deltaT, k2);
+			PlusEqualsKX(c2, 0.5*deltaT, k2);
 			
 			c2.Exchange();
 			ConsToPrims(prims, c2, params);
 			
 			ComputeRhs(prims, c2, k3, params);
-			PlusEqualsKX(rhs, params.deltaT/3.0, k3);
+			PlusEqualsKX(rhs, deltaT/3.0, k3);
 			PlusEqualsKX(c3, 1.0, cons);
-			PlusEqualsKX(c3, 0.5*params.deltaT, k3);
+			PlusEqualsKX(c3, 0.5*deltaT, k3);
 			
 			c3.Exchange();
 			ConsToPrims(prims, c3, params);
 			
 			ComputeRhs(prims, c3, k4, params);
-			PlusEqualsKX(rhs, params.deltaT/6.0, k4);
+			PlusEqualsKX(rhs, deltaT/6.0, k4);
 			
 			PlusEqualsKX(cons, 1.0, rhs);
 			cons.Exchange();
@@ -197,29 +202,44 @@ int main(int argc, char** argv)
 		else
 		{
 			ComputeRhs(prims, cons, rhs, params);
-			PlusEqualsKX(cons, params.deltaT, rhs);
+			PlusEqualsKX(cons, deltaT, rhs);
 			cons.Exchange();
 			ConsToPrims(prims, cons, params);
 			prims.Exchange();
 		}
 		
 		double integratedEnstrophy = Enstrophy(prims);
+		double integratedKE = KineticEnergy(prims, params);
 		auto finish = std::chrono::high_resolution_clock::now();
 		std::chrono::duration<double> elapsed = finish - start;
 		double timeMS = 1000*elapsed.count();
-		
-		if (isRoot) print("Timestep", nt, "\nElapsed:", timeMS, "ms", "\nUmax:", umax, "\nRemaining time:", GetRemainingTime(nt, params.maxStep, elapsedTime), "\nEnstrophy:", integratedEnstrophy, "\nTime:", time, "\n");
+		double effTimeStep = GetTimestep(prims, params);
+		if (isRoot)
+		{
+			double maxCFL = params.CFL*deltaT/effTimeStep;
+			print("Timestep", nt);
+			print("Elapsed:", timeMS, "ms");
+			print("Umax:", umax);
+			print("Remaining time:", GetRemainingTime(nt, params.maxStep, elapsedTime));
+			print("Enstrophy:", integratedEnstrophy);
+			print("Energy:", integratedKE);
+			print("Time:", time);
+			print("deltaT:", deltaT);
+			print("CFL:", maxCFL);
+			print("");
+			if (!(params.maxCFL > maxCFL))
+			{
+				KILL;
+			}
+		}
 		if (nt%params.outputInterval==0 && nt > 0)
 		{
 			OutputData(nt, prims, params);
 		}
         elapsedTime += timeMS;
-		if (!(umax<params.uLimit))
-		{
-			KILL;
-		}
-		time += params.deltaT;
+		time += deltaT;
 		enstrophySeries.AddEntry(time, integratedEnstrophy);
+		energySeries.AddEntry(time, integratedKE);
 	}
 	return 0;
 }
