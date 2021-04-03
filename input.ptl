@@ -1,8 +1,9 @@
+#define num 16
 GlobalSettings
 {
     Display
     {
-        debugLevel = 4 // Level of debug output written to screen
+        debugLevel = 7 // Level of debug output written to screen
         trackOutputOrigins = false // Writes file and line number to screen along with output
     }
     Memory
@@ -14,7 +15,7 @@ Domain
 {
     Exchanges
     {
-        exchangeDim = [2, 2, 2] // Number of exchange cells to use in each direction
+        exchangeDim = [4, 4, 4] // Number of exchange cells to use in each direction
         interpolationOrder = 2 // The order of interpolation from one level to the next, or previous, when performing exchanges
     }
     Partition
@@ -23,7 +24,7 @@ Domain
     }
     blockBounds = [0, 1, 0, 1, 0, 1] // Base block bounds
     blockDim = [2, 2, 2] // Base block dimensions
-    meshDataDim = [64, 64, 64] // Dimensions of data
+    meshDataDim = [$(num), $(num), $(num)] // Dimensions of data
     periodicRefinement = [true, true, true] // Determines if the refinementConstraintType applies accross domain boundaries
     refinementConstraintType = factor2CompletelyConstrained // Determines how refinements are constrained :: Options: {free, factor2PartiallyConstrained, factor2CompletelyConstrained}
 }
@@ -42,5 +43,5 @@ Solver
     viscosity = 0.000625
     cfdCase = TGV
     prandtl = 0.72
-    viscous = false
+    viscous = true
 }
