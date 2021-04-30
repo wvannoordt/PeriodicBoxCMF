@@ -32,13 +32,13 @@ Solver
 {
     gamma = 1.4 // Specific heat ratio
     cp = 3.5
-    CFL = 0.6
+    CFL = 0.05
     maxCFL = 5.0
     maxStep = 50000
     outputInterval = 1000
     centOrder = 4
     uLimit = 15.0
-    useRK4 = true
+    useRK4 = false
     guardOutput = false
     viscosity = 0.000625
     cfdCase = TGV
