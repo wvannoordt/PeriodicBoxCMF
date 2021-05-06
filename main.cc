@@ -7,7 +7,9 @@
 #include "Integrate.hpp"
 #include "GetTimestep.hpp"
 #include <chrono>
-
+using cmf::print;
+using cmf::strformat;
+using cmf::strunformat;
 struct TimeSeries
 {
 	std::vector<double> times;
@@ -62,8 +64,25 @@ struct TimeSeries
 	}
 };
 
-using cmf::print;
-using cmf::strformat;
+struct TimeControl : public cmf::ICmfDataBaseReadWriteObject
+{
+	double time;
+	int nt;
+	int minStep = 0;
+	int maxStep = 0;
+    virtual void ReadFromFile(cmf::ParallelFile& file) override
+	{
+		strunformat(file.Read(), "nt: {}", nt);
+		strunformat(file.Read(), "time: {}", time);
+	}
+	         
+    virtual void WriteToFile(cmf::ParallelFile& file) override
+	{
+		file.Write(strformat("nt: {}", nt));
+		file.Write(strformat("time: {}", time));
+	}
+};
+
 std::string GetInputFile(int argc, char** argv)
 {
 	if (argc<=1) return "input.ptl";
@@ -98,18 +117,18 @@ int main(int argc, char** argv)
 	cmf::CartesianMeshInputInfo inputInfo(cmf::mainInput["Domain"]);
     cmf::CartesianMesh domain(inputInfo);
 	
-	auto& prims = domain.DefineVariable("prims", sizeof(double), {5});
-	auto& cons  = domain.DefineVariable("cons",  sizeof(double), {5});
-	auto& rhs   = domain.DefineVariable("rhs",   sizeof(double), {5});
+	auto& prims = domain.DefineVariable("prims", cmf::CmfArrayType::CmfDouble, {5});
+	auto& cons  = domain.DefineVariable("cons",  cmf::CmfArrayType::CmfDouble, {5});
+	auto& rhs   = domain.DefineVariable("rhs",   cmf::CmfArrayType::CmfDouble, {5});
 	
-	auto& k1 = domain.DefineVariable("k1", sizeof(double), {5});
-	auto& k2 = domain.DefineVariable("k2", sizeof(double), {5});
-	auto& k3 = domain.DefineVariable("k3", sizeof(double), {5});
-	auto& k4 = domain.DefineVariable("k4", sizeof(double), {5});
+	auto& k1 = domain.DefineVariable("k1", cmf::CmfArrayType::CmfDouble, {5});
+	auto& k2 = domain.DefineVariable("k2", cmf::CmfArrayType::CmfDouble, {5});
+	auto& k3 = domain.DefineVariable("k3", cmf::CmfArrayType::CmfDouble, {5});
+	auto& k4 = domain.DefineVariable("k4", cmf::CmfArrayType::CmfDouble, {5});
 	
-	auto& c1 = domain.DefineVariable("c1", sizeof(double), {5});
-	auto& c2 = domain.DefineVariable("c2", sizeof(double), {5});
-	auto& c3 = domain.DefineVariable("c3", sizeof(double), {5});
+	auto& c1 = domain.DefineVariable("c1", cmf::CmfArrayType::CmfDouble, {5});
+	auto& c2 = domain.DefineVariable("c2", cmf::CmfArrayType::CmfDouble, {5});
+	auto& c3 = domain.DefineVariable("c3", cmf::CmfArrayType::CmfDouble, {5});
 	
 	prims.ComponentName({0}) = "P";
 	prims.ComponentName({1}) = "T";
@@ -123,24 +142,44 @@ int main(int argc, char** argv)
 	cons.ComponentName({3}) = "RhoV";
 	cons.ComponentName({4}) = "RhoW";
 	
-	switch(params.cfdCase)
+	TimeControl tc;
+	tc.nt = 0;
+	tc.time = 0;
+	tc.minStep = 0;
+	tc.maxStep = params.maxStep;
+	cmf::CmfDataBase checkpointDB("checkpoint");
+	checkpointDB["mesh"]  << domain;
+	checkpointDB["timeControl"]  << tc;
+	checkpointDB["prims"] << prims;
+	checkpointDB["cons"]  << cons;
+	
+	if (!params.startFromCheckpoint)
 	{
-		case CFDCase::TGV:
+		switch(params.cfdCase)
 		{
-			InitialConditionTgv(prims, rhs, params);
-			break;
-		}
-		case CFDCase::IsentropicVortex:
-		{
-			InitialConditionVort(prims, rhs, params);
-			break;
-		}
-		default: 
-		{
-			print("Bad case");
-			KILL;
+			case CFDCase::TGV:
+			{
+				InitialConditionTgv(prims, rhs, params);
+				break;
+			}
+			case CFDCase::IsentropicVortex:
+			{
+				InitialConditionVort(prims, rhs, params);
+				break;
+			}
+			default: 
+			{
+				print("Bad case");
+				KILL;
+			}
 		}
 	}
+	else
+	{
+		checkpointDB.Read(params.checkpointFile);
+	}
+	tc.minStep = tc.nt;
+	tc.maxStep = tc.minStep + params.maxStep;
 	PrimsToCons(prims, cons, params);
 	OutputData(0, prims, params);
 	double elapsedTime = 0.0;
@@ -148,12 +187,16 @@ int main(int argc, char** argv)
 	
 	double deltaT = GetTimestep(prims, params);
 	
-	
-	double time = 0;
 	TimeSeries enstrophySeries("series/enstrophy.csv", 50);
 	TimeSeries energySeries("series/kinetic.csv", 50);
-	for (int nt = 0; nt <= params.maxStep; nt++)
+	for (tc.nt = tc.minStep; tc.nt <= tc.maxStep; tc.nt++)
 	{
+		if (tc.nt%params.checkpointInterval==0)
+		{
+			std::string checkPointFileName = strformat("nt{}", cmf::ZFill(tc.nt, 7));
+			checkpointDB.Write(checkPointFileName);
+		}
+		int nt = tc.nt;
 		auto start = std::chrono::high_resolution_clock::now();
 		double umax = UMax(prims);
 		ZeroRhs(rhs);
@@ -198,6 +241,7 @@ int main(int argc, char** argv)
 			PlusEqualsKX(cons, 1.0, rhs);
 			cons.Exchange();
 			ConsToPrims(prims, cons, params);
+			prims.Exchange();
 		}
 		else
 		{
@@ -237,9 +281,9 @@ int main(int argc, char** argv)
 			OutputData(nt, prims, params);
 		}
         elapsedTime += timeMS;
-		time += deltaT;
-		enstrophySeries.AddEntry(time, integratedEnstrophy);
-		energySeries.AddEntry(time, integratedKE);
+		tc.time += deltaT;
+		enstrophySeries.AddEntry(tc.time, integratedEnstrophy);
+		energySeries.AddEntry(tc.time, integratedKE);
 	}
 	return 0;
 }

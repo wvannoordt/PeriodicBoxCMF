@@ -1,9 +1,10 @@
 main: setup
-	mpicxx -I. -I${CMF}/include -I${PTL}/include -DCMF_DIM=3 -O3 main.cc -o pbc -L${CMF}/lib -lcmf -L${PTL}/lib -lPTL
+	mpicxx -I. -I${CMF}/include -I${PTL}/include -O3 main.cc -o pbc -L${CMF}/lib -lcmf -L${PTL}/lib -lPTL
 
 setup:
 	mkdir -p output
 	mkdir -p series
+	mkdir -p checkpoint
 
 clean:
 	rm -f pbc

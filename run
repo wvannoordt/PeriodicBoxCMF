@@ -2,4 +2,5 @@ rm -rf output
 rm -rf series
 mkdir -p output
 mkdir -p series
+mkdir -p checkpoint
 mpirun -np 8 pbc

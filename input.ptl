@@ -1,10 +1,11 @@
-#define num 16
+#define num 48
 GlobalSettings
 {
     Display
     {
         debugLevel = 7 // Level of debug output written to screen
         trackOutputOrigins = false // Writes file and line number to screen along with output
+        colorOutput = true
     }
     Memory
     {
@@ -35,13 +36,16 @@ Solver
     CFL = 0.05
     maxCFL = 5.0
     maxStep = 50000
-    outputInterval = 1000
+    outputInterval = 200
     centOrder = 4
     uLimit = 15.0
-    useRK4 = false
-    guardOutput = false
+    useRK4 = true
+    guardOutput = true
     viscosity = 0.000625
     cfdCase = TGV
     prandtl = 0.72
     viscous = true
+    checkpointInterval = 100
+    startFromCheckpoint = false
+    checkpointFile = nt000100
 }
