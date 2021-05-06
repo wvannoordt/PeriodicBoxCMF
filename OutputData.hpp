@@ -38,7 +38,7 @@ void OutputData(int nt, cmf::CartesianMeshArray& array, InputParams& params)
                 
                 double origin[3] = {0.0};
                 double spacing[3] = {1.0};
-                for (int i = 0; i < 3; i++) origin[i] = multGuard*info.blockBounds[2*i];
+                for (int i = 0; i < 3; i++) origin[i] = multGuard*info.blockBounds[2*i]-iGuards*info.exchangeDim[i]*info.dx[i];
                 for (int i = 0; i < 3; i++) spacing[i] = info.dx[i];
                 
                 myfile << "ORIGIN "  << origin[0]  << " " << origin[1]  << " " << origin[2]  << std::endl;

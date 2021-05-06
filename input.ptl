@@ -1,4 +1,4 @@
-#define num 48
+#define num 28
 GlobalSettings
 {
     Display
@@ -33,10 +33,10 @@ Solver
 {
     gamma = 1.4 // Specific heat ratio
     cp = 3.5
-    CFL = 0.05
+    CFL = 0.5
     maxCFL = 5.0
-    maxStep = 50000
-    outputInterval = 200
+    maxStep = 500
+    outputInterval = 100
     centOrder = 4
     uLimit = 15.0
     useRK4 = true
@@ -45,7 +45,7 @@ Solver
     cfdCase = TGV
     prandtl = 0.72
     viscous = true
-    checkpointInterval = 100
-    startFromCheckpoint = false
-    checkpointFile = nt000100
+    checkpointInterval = 50
+    startFromCheckpoint = true
+    checkpointFile = nt0000250
 }

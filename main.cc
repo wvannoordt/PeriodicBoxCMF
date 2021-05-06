@@ -181,7 +181,7 @@ int main(int argc, char** argv)
 	tc.minStep = tc.nt;
 	tc.maxStep = tc.minStep + params.maxStep;
 	PrimsToCons(prims, cons, params);
-	OutputData(0, prims, params);
+	if (!params.startFromCheckpoint) OutputData(0, prims, params);
 	double elapsedTime = 0.0;
 	bool isRoot = cmf::globalGroup.IsRoot();
 	
@@ -267,7 +267,7 @@ int main(int argc, char** argv)
 			print("Remaining time:", GetRemainingTime(nt, params.maxStep, elapsedTime));
 			print("Enstrophy:", integratedEnstrophy);
 			print("Energy:", integratedKE);
-			print("Time:", time);
+			print("Time:", tc.time);
 			print("deltaT:", deltaT);
 			print("CFL:", maxCFL);
 			print("");
