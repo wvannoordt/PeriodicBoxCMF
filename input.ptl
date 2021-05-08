@@ -24,7 +24,7 @@ Domain
     }
     blockBounds = [0, 1, 0, 1, 0, 1] // Base block bounds
     blockDim = [2, 2, 2] // Base block dimensions
-    meshDataDim = [16, 16, 16] // Dimensions of data
+    meshDataDim = [4, 4, 4] // Dimensions of data
     periodicRefinement = [true, true, true] // Determines if the refinementConstraintType applies accross domain boundaries
     refinementConstraintType = factor2CompletelyConstrained // Determines how refinements are constrained :: Options: {free, factor2PartiallyConstrained, factor2CompletelyConstrained}
 }
@@ -39,7 +39,7 @@ Solver
     centOrder = 4
     uLimit = 15.0
     useRK4 = true
-    guardOutput = true
+    guardOutput = false
     viscosity = 0.000625
     cfdCase = TGV
     prandtl = 0.72

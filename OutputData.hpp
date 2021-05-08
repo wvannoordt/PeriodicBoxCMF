@@ -15,6 +15,10 @@ std::string spaces(int i)
 }
 void OutputData(int nt, cmf::CartesianMeshArray& array, InputParams& params)
 {
+#if (!CMF_IS3D)
+    print("not working for 2D");
+    abort();
+#endif
     int iGuards = params.guardOutput?1:0;
     double multGuard = 1.0 + iGuards;
     int numBlocksWritten = 0;
@@ -45,10 +49,53 @@ void OutputData(int nt, cmf::CartesianMeshArray& array, InputParams& params)
                 myfile << "<VTKFile type=\"UnstructuredGrid\">" << std::endl;
                 myfile << spaces(4) <<"<UnstructuredGrid>" << std::endl;
                 myfile << spaces(8) <<"<Piece NumberOfPoints=\"" << numPoints << "\" NumberOfCells=\"" << numCells << "\">" << std::endl;
-                myfile << spaces(12) << "<PointData>" << "..." << "</PointData>" << std::endl;
                 myfile << spaces(12) << "<CellData>" << "..." << "</CellData>" << std::endl;
-                myfile << spaces(12) << "<Points>" << "..." << "</Points>" << std::endl;
-                myfile << spaces(12) << "<Cells>" << "..." << "</Cells>" << std::endl;
+                myfile << spaces(12) << "<Points>" << std::endl;
+                myfile << spaces(16) << "<DataArray type=\"Float32\" NumberOfComponents=\"3\" format=\"ascii\">" << std::endl;
+                int lw = 0;
+                std::string sp = spaces(20);
+                const char* spp = sp.c_str();
+                for (cmf::cell_t k = block.kmin-iGuards*block.exchangeK; k <= block.kmax+iGuards*block.exchangeK; k++)
+                {
+                    for (cmf::cell_t j = block.jmin-iGuards*block.exchangeJ; j <= block.jmax+iGuards*block.exchangeJ; j++)
+                    {
+                        for (cmf::cell_t i = block.imin-iGuards*block.exchangeI; i <= block.imax+iGuards*block.exchangeI; i++)
+                        {
+                            double xx = info.blockBounds[0]+i*info.dx[0];
+                            double yy = info.blockBounds[2]+j*info.dx[1];
+                            double zz = 0.0;
+#if (CMF_IS3D)
+                            zz = info.blockBounds[4]+k*info.dx[2];
+#endif
+                            lw++;
+                            myfile << spp << xx << " " << yy << " " << zz << std::endl;
+                        }
+                    }
+                }
+                myfile << spaces(16) << "</DataArray>" << std::endl;
+                myfile << spaces(12) << "</Points>" << std::endl;
+                myfile << spaces(12) << "<Cells>" << std::endl;
+                myfile << spaces(16) << "<DataArray type=\"Int32\" Name==\"connectivity\" format=\"ascii\">" << std::endl;
+                int cellNum = 0;
+                for (cmf::cell_t k = block.kmin-iGuards*block.exchangeK; k < block.kmax+iGuards*block.exchangeK; k++)
+                {
+                    for (cmf::cell_t j = block.jmin-iGuards*block.exchangeJ; j < block.jmax+iGuards*block.exchangeJ; j++)
+                    {
+                        for (cmf::cell_t i = block.imin-iGuards*block.exchangeI; i < block.imax+iGuards*block.exchangeI; i++)
+                        {
+                            
+                            
+                        }
+                    }
+                }                
+                myfile << spaces(16) << "</DataArray>" << std::endl;
+                myfile << spaces(16) << "<DataArray type=\"Int32\" Name==\"offsets\" format=\"ascii\">" << std::endl;
+                
+                myfile << spaces(16) << "</DataArray>" << std::endl;
+                myfile << spaces(16) << "<DataArray type=\"Uint8\" Name==\"types\" format=\"ascii\">" << std::endl;
+                
+                myfile << spaces(16) << "</DataArray>" << std::endl;
+                myfile << spaces(12) << "</Cells>" << std::endl;
                 myfile << spaces(8) << "</Piece>" << std::endl;
                 myfile << spaces(4) << "</UnstructuredGrid>" << std::endl;
                 myfile << "</VTKFile>" << std::endl;
