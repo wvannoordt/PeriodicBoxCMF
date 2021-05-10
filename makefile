@@ -1,7 +1,15 @@
 FLAGS := -Ofast
+export DIM=3
+export DOLATEXOUTPUT=0
+export OPTLEVEL=3
+export PARALLEL=1
+export CUDA_ENABLE=1
 #FLAGS := -O3
-main: setup
+main: setup cmf
 	mpicxx -I. -I${CMF}/include -I${PTL}/include ${FLAGS} main.cc -o pbc -L${CMF}/lib -lcmf -L${PTL}/lib -lPTL
+
+cmf:
+	make -C ${CMF} -f makefile
 
 setup:
 	mkdir -p output

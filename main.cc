@@ -3,13 +3,13 @@
 #include "InitialCondition.hpp"
 #include "PrimsCons.hpp"
 #include "Rhs.hpp"
-#include "OutputData.hpp"
 #include "Integrate.hpp"
 #include "GetTimestep.hpp"
 #include <chrono>
 using cmf::print;
 using cmf::strformat;
 using cmf::strunformat;
+using cmf::ZFill;
 struct TimeSeries
 {
 	std::vector<double> times;
@@ -181,7 +181,7 @@ int main(int argc, char** argv)
 	tc.minStep = tc.nt;
 	tc.maxStep = tc.minStep + params.maxStep;
 	PrimsToCons(prims, cons, params);
-	if (!params.startFromCheckpoint) OutputData(0, prims, params);
+	prims.ExportFile("output", "initialCondition");
 	double elapsedTime = 0.0;
 	bool isRoot = cmf::globalGroup.IsRoot();
 	
@@ -278,7 +278,8 @@ int main(int argc, char** argv)
 		}
 		if (nt%params.outputInterval==0 && nt > 0)
 		{
-			OutputData(nt, prims, params);
+			std::string ftitle = strformat("data_nt_{}", ZFill(nt, 7));
+			prims.ExportFile("output", ftitle);
 		}
         elapsedTime += timeMS;
 		tc.time += deltaT;

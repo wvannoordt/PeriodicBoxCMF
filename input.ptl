@@ -32,9 +32,9 @@ Solver
 {
     gamma = 1.4 // Specific heat ratio
     cp = 3.5
-    CFL = 0.3
+    CFL = 0.1
     maxCFL = 5.0
-    maxStep = 150000
+    maxStep = 1000
     outputInterval = 100
     centOrder = 2
     uLimit = 15.0
@@ -44,7 +44,7 @@ Solver
     cfdCase = TGV
     prandtl = 0.72
     viscous = true
-    checkpointInterval = 1000
-    startFromCheckpoint = false
-    checkpointFile = nt0001500
+    checkpointInterval = 2000
+    startFromCheckpoint = true
+    checkpointFile = nt0002000
 }
