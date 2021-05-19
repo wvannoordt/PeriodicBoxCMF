@@ -6,7 +6,7 @@ export PARALLEL=1
 export CUDA_ENABLE=1
 #FLAGS := -O3
 main: setup cmf
-	mpicxx -I. -I${CMF}/include -I${PTL}/include ${FLAGS} main.cc -o pbc -L${CMF}/lib -lcmf -L${PTL}/lib -lPTL
+	mpicxx --std=c++11 -I. -I${CMF}/include -I${PTL}/include ${FLAGS} main.cc -o pbc -L${CMF}/lib -lcmf -L${PTL}/lib -lPTL
 
 cmf:
 	make -C ${CMF} -f makefile
