@@ -35,7 +35,7 @@ Solver
     CFL = 0.1
     maxCFL = 5.0
     maxStep = 1000
-    outputInterval = 100
+    outputInterval = 10000
     centOrder = 2
     uLimit = 15.0
     useRK4 = true
