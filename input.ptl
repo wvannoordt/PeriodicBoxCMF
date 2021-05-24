@@ -24,7 +24,7 @@ Domain
     }
     blockBounds = [0, 1, 0, 1, 0, 1] // Base block bounds
     blockDim = [2, 2, 2] // Base block dimensions
-    meshDataDim = [64, 64, 64] // Dimensions of data
+    meshDataDim = [32, 32, 32] // Dimensions of data
     periodicRefinement = [true, true, true] // Determines if the refinementConstraintType applies accross domain boundaries
     refinementConstraintType = factor2CompletelyConstrained // Determines how refinements are constrained :: Options: {free, factor2PartiallyConstrained, factor2CompletelyConstrained}
 }
