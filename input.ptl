@@ -2,7 +2,7 @@ GlobalSettings
 {
     Display
     {
-        debugLevel = 4 // Level of debug output written to screen
+        debugLevel = 5 // Level of debug output written to screen
         trackOutputOrigins = false // Writes file and line number to screen along with output
         colorOutput = true
     }
@@ -24,7 +24,7 @@ Domain
     }
     blockBounds = [0, 1, 0, 1, 0, 1] // Base block bounds
     blockDim = [2, 2, 2] // Base block dimensions
-    meshDataDim = [32, 32, 32] // Dimensions of data
+    meshDataDim = [16, 16, 16] // Dimensions of data
     periodicRefinement = [true, true, true] // Determines if the refinementConstraintType applies accross domain boundaries
     refinementConstraintType = factor2CompletelyConstrained // Determines how refinements are constrained :: Options: {free, factor2PartiallyConstrained, factor2CompletelyConstrained}
 }
@@ -35,7 +35,7 @@ Solver
     CFL = 0.1
     maxCFL = 5.0
     maxStep = 1000
-    outputInterval = 10000
+    outputInterval = 100
     centOrder = 2
     uLimit = 15.0
     useRK4 = true
@@ -44,7 +44,7 @@ Solver
     cfdCase = TGV
     prandtl = 0.72
     viscous = true
-    checkpointInterval = 200000
+    checkpointInterval = 100
     startFromCheckpoint = false
     checkpointFile = nt0002000
 }

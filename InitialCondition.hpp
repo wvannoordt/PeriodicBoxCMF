@@ -17,11 +17,11 @@ void InitialConditionTgv(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray
         double dx = binfo.dx[0];
         double dy = binfo.dx[1];
         double dz = binfo.dx[2];
-        for (cmf::cell_t k = primsLb.kmin - primsLb.exchangeK; k < primsLb.kmax + primsLb.exchangeK; k++)
+        for (cmf::cell_t k = primsLb.kmin; k < primsLb.kmax; k++)
         {
-            for (cmf::cell_t j = primsLb.jmin - primsLb.exchangeJ; j < primsLb.jmax + primsLb.exchangeJ; j++)
+            for (cmf::cell_t j = primsLb.jmin; j < primsLb.jmax; j++)
             {
-                for (cmf::cell_t i = primsLb.imin - primsLb.exchangeI; i < primsLb.imax + primsLb.exchangeI; i++)
+                for (cmf::cell_t i = primsLb.imin; i < primsLb.imax; i++)
                 {
                     double xi = xmin + dx*((double)i+0.5);
                     double yi = ymin + dy*((double)j+0.5);
@@ -42,6 +42,9 @@ void InitialConditionTgv(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray
                     primsLb(2, i, j, k) =  u0*sin(xi/L)*cos(yi/L)*cos(zi/L);
                     primsLb(3, i, j, k) = -u0*cos(xi/L)*sin(yi/L)*cos(zi/L);
                     primsLb(4, i, j, k) =  0.0;
+                    // primsLb(2, i, j, k) = xi;
+                    // primsLb(3, i, j, k) = yi;
+                    // primsLb(4, i, j, k) = zi;
                 }
             }
         }
