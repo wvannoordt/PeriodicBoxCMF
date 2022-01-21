@@ -3,9 +3,12 @@
 #include "cmf.h"
 #include "InputParams.h"
 #include "util.h"
+#include "MdArray.h"
 
 using cmf::face_t;
 using cmf::cell_t;
+
+#define ALPHA 0.5
 
 #define stencilIdx(v,j) ((v)+(5+3)*(j))
 #define f_DivSplit(q,j,l,v1)         (0.500*(q[stencilIdx((v1),(j))] + q[stencilIdx((v1),(j)+(l))]))
@@ -112,12 +115,113 @@ void ComputeConv(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& cons, 
                             }
                         }
                         
-                        rhsLb(0, i, j, k)      -= info.dxInv[idir]*(C[1] - C[0]);
-                        rhsLb(1, i, j, k)      -= info.dxInv[idir]*(IE[1] + KE[1] + PDIFF[1] - IE[0] - KE[0] - PDIFF[0]);
-                        rhsLb(2, i, j, k)      -= info.dxInv[idir]*(M[0] - M[3]);
-                        rhsLb(3, i, j, k)      -= info.dxInv[idir]*(M[1] - M[4]);
-                        rhsLb(4, i, j, k)      -= info.dxInv[idir]*(M[2] - M[5]);
-                        rhsLb(2+idir, i, j, k) -= info.dxInv[idir]*(PGRAD[1] - PGRAD[0]);
+                        rhsLb(0, i, j, k)      -= (1.0-ALPHA)*info.dxInv[idir]*(C[1] - C[0]);
+                        rhsLb(1, i, j, k)      -= (1.0-ALPHA)*info.dxInv[idir]*(IE[1] + KE[1] + PDIFF[1] - IE[0] - KE[0] - PDIFF[0]);
+                        rhsLb(2, i, j, k)      -= (1.0-ALPHA)*info.dxInv[idir]*(M[0] - M[3]);
+                        rhsLb(3, i, j, k)      -= (1.0-ALPHA)*info.dxInv[idir]*(M[1] - M[4]);
+                        rhsLb(4, i, j, k)      -= (1.0-ALPHA)*info.dxInv[idir]*(M[2] - M[5]);
+                        rhsLb(2+idir, i, j, k) -= (1.0-ALPHA)*info.dxInv[idir]*(PGRAD[1] - PGRAD[0]);
+                    }
+                }
+            }
+            dijk[idir] = 0;
+        }
+    }
+}
+
+void ComputeConvDiss(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& cons, cmf::CartesianMeshArray& rhs, InputParams& params)
+{
+    double centerCoef[4] = {0.0};
+    switch (params.centOrder)
+    {
+        case 2: {centerCoef[0] = 1.0/2.0; break;}
+        case 4: {centerCoef[0] = 2.0/3.0; centerCoef[1] = -1.0/12.0; break;}
+        case 6: {centerCoef[0] = 3.0/4.0; centerCoef[1] = -3.0/20.0; centerCoef[2] = 1.0/60.0; break;}
+        case 8: {centerCoef[0] = 4.0/5.0; centerCoef[1] = -1.0/5.0 ; centerCoef[2] = 4.0/105 ; centerCoef[3] = -1.0/280.0; break;}
+        default: {std::cout << "Bad central scheme order." << std::endl; abort();}
+    }
+    double Rgas = params.cp*(params.gamma - 1.0)/params.gamma;
+    for (auto lb: prims)
+    {
+        cmf::BlockArray<double, 1> primsLb = prims[lb];
+        cmf::BlockArray<double, 1> consLb  = cons[lb];
+        cmf::BlockArray<double, 1> rhsLb  = rhs[lb];
+        cmf::BlockInfo info = rhs.Mesh()->GetBlockInfo(lb);
+        DataView<double, Dims<5,5,2>> fluxStencil;
+        double fluxR[5];
+        double fluxL[5];
+        for (int idir = 0; idir < 3; idir++)
+        {
+            int dijk[3] = {0};
+            dijk[idir] = 1;
+            for (cmf::cell_t k = primsLb.kmin; k < primsLb.kmax; k++)
+            {
+                for (cmf::cell_t j = primsLb.jmin; j < primsLb.jmax; j++)
+                {
+                    for (cmf::cell_t i = primsLb.imin; i < primsLb.imax; i++)
+                    {
+                        for (int n1 = 0; n1 < 5; n1++)
+                        {
+                            //P T U V W
+                            double rho   = consLb(0,      i+(n1-2)*dijk[0], j+(n1-2)*dijk[1], k+(n1-2)*dijk[2]);
+                            double rhoE  = consLb(1,      i+(n1-2)*dijk[0], j+(n1-2)*dijk[1], k+(n1-2)*dijk[2]);
+                            double rhoU  = consLb(2,      i+(n1-2)*dijk[0], j+(n1-2)*dijk[1], k+(n1-2)*dijk[2]);
+                            double rhoW  = consLb(3,      i+(n1-2)*dijk[0], j+(n1-2)*dijk[1], k+(n1-2)*dijk[2]);
+                            double rhoV  = consLb(4,      i+(n1-2)*dijk[0], j+(n1-2)*dijk[1], k+(n1-2)*dijk[2]);
+                            double Un    = consLb(2+idir, i+(n1-2)*dijk[0], j+(n1-2)*dijk[1], k+(n1-2)*dijk[2])/rho;
+                            for (int pp = 0; pp < 2; pp++)
+                            {
+                                fluxStencil(n1, 0, pp) =  rho*Un*0.5;
+                                fluxStencil(n1, 1, pp) = rhoE*Un*0.5;
+                                fluxStencil(n1, 2, pp) = rhoU*Un*0.5;
+                                fluxStencil(n1, 3, pp) = rhoV*Un*0.5;
+                                fluxStencil(n1, 4, pp) = rhoW*Un*0.5;
+                            }
+                        }
+                        
+                        auto weno3 = [](double al, double bl, double cl, double dl, double ar, double br, double cr, double dr) -> double
+                        {
+                            //  a  b     c  d (left and right)
+                            //  +  +  |  +  +
+                            
+                            //right
+                            double rr1 = -0.5*ar+1.5*br;
+                            double rr2 =  0.5*br+0.5*cr;
+                            
+                            double br1 = (ar-br)*(ar-br);
+                            double br2 = (cr-br)*(cr-br);
+                            double sumr = br1 + br2;
+                            
+                            br1/=sumr;
+                            br2/=sumr;
+                            
+                            double wr1 = 0.3333333333/(1e-16+br1);
+                            double wr2 = 0.6666666667/(1e-16+br2);
+                            
+                            //left
+                            double rl1 = -0.5*dl+1.5*cl;
+                            double rl2 =  0.5*bl+0.5*cl;
+                            
+                            double bl1 = (al-bl)*(al-bl);
+                            double bl2 = (cl-bl)*(cl-bl);
+                            double suml = bl1 + bl2;
+                            
+                            bl1/=suml;
+                            bl2/=suml;
+                            
+                            double wl1 = 0.3333333333/(1e-16+bl1);
+                            double wl2 = 0.6666666667/(1e-16+bl2);
+                            
+                            return rr1*wr1+rr2*wr2+rl1*wl1+rl2*wl2;
+                        };
+                        
+                        for (int n1 = 0; n1 < 5; n1++)
+                        {
+                            // left
+                            fluxR[n1] = weno3(fluxStencil(0, n1, 0), fluxStencil(1, n1, 0), fluxStencil(2, n1, 0), fluxStencil(3, n1, 0), fluxStencil(0, n1, 1), fluxStencil(1, n1, 1), fluxStencil(2, n1, 1), fluxStencil(3, n1, 1));
+                            fluxL[n1] = weno3(fluxStencil(1, n1, 0), fluxStencil(2, n1, 0), fluxStencil(3, n1, 0), fluxStencil(4, n1, 0), fluxStencil(1, n1, 1), fluxStencil(2, n1, 1), fluxStencil(3, n1, 1), fluxStencil(4, n1, 1));
+                            rhsLb(n1, i, j, k) -= ALPHA*(fluxR[n1]-fluxL[n1])*info.dxInv[idir];
+                        }
                     }
                 }
             }
@@ -258,6 +362,7 @@ void ComputeVisc(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& cons, 
 void ComputeRhs(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& cons, cmf::CartesianMeshArray& rhs, InputParams& params)
 {
     ComputeConv(prims, cons, rhs, params);
+    ComputeConvDiss(prims, cons, rhs, params);
     if (params.viscous)
     {
         ComputeVisc(prims, cons, rhs, params);

@@ -1,6 +1,12 @@
+nproc=8
+if [[ "$1" != "" ]]
+then
+	nproc="$1"
+fi
+echo "Running on ${nproc} ranks"
 rm -rf output
 rm -rf series
 mkdir -p output
 mkdir -p series
 mkdir -p checkpoint
-mpirun -np 8 pbc
+mpirun -np ${nproc} pbc

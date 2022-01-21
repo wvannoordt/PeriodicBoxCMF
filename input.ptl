@@ -2,7 +2,7 @@ GlobalSettings
 {
     Display
     {
-        debugLevel = 5 // Level of debug output written to screen
+        debugLevel = 2 // Level of debug output written to screen
         trackOutputOrigins = false // Writes file and line number to screen along with output
         colorOutput = true
     }
@@ -15,7 +15,7 @@ Domain
 {
     Exchanges
     {
-        exchangeDim = [1, 1, 1] // Number of exchange cells to use in each direction
+        exchangeDim = [2, 2, 2] // Number of exchange cells to use in each direction
         interpolationOrder = 2 // The order of interpolation from one level to the next, or previous, when performing exchanges
     }
     Partition
@@ -23,8 +23,8 @@ Domain
         partitionType = uniform // The partitioning approacsh used to partition the Cartesian mesh :: Options: {uniform, unsupported}
     }
     blockBounds = [0, 1, 0, 1, 0, 1] // Base block bounds
-    blockDim = [2, 2, 2] // Base block dimensions
-    meshDataDim = [16, 16, 16] // Dimensions of data
+    blockDim = [4, 4, 4] // Base block dimensions
+    meshDataDim = [32, 32, 32] // Dimensions of data
     periodicRefinement = [true, true, true] // Determines if the refinementConstraintType applies accross domain boundaries
     refinementConstraintType = factor2CompletelyConstrained // Determines how refinements are constrained :: Options: {free, factor2PartiallyConstrained, factor2CompletelyConstrained}
 }
