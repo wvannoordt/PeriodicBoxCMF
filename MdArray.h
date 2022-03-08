@@ -20,7 +20,7 @@ template <const int... vals> struct Dims
 	template <const int depth, typename index, typename... indices> static inline size_t idxR(index i, indices... is)
 	{
 		static_assert(std::is_integral<index>::value, "Integral value for index required.");
-		return prod<depth, vals...>()*i + idxR<depth+1>(is...);
+		return prod<depth, vals...>()*i + idxR<depth+1>(is...); 
 	}
 	template <typename... indices> static inline size_t offset(indices... is)
 	{

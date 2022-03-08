@@ -8,7 +8,8 @@
 using cmf::face_t;
 using cmf::cell_t;
 
-#define ALPHA 0.5
+#define ALPHA 0.1
+#define FACE_FLUX_EVAL 0
 
 #define stencilIdx(v,j) ((v)+(5+3)*(j))
 #define f_DivSplit(q,j,l,v1)         (0.500*(q[stencilIdx((v1),(j))] + q[stencilIdx((v1),(j)+(l))]))
@@ -38,15 +39,15 @@ void ComputeConv(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& cons, 
         {
             int dijk[3] = {0};
             dijk[idir] = 1;
-            for (cmf::cell_t k = primsLb.kmin; k < primsLb.kmax; k++)
+            for (cmf::cell_t k = primsLb.kmin; k < primsLb.kmax+FACE_FLUX_EVAL; k++)
             {
-                for (cmf::cell_t j = primsLb.jmin; j < primsLb.jmax; j++)
+                for (cmf::cell_t j = primsLb.jmin; j < primsLb.jmax+FACE_FLUX_EVAL; j++)
                 {
-                    for (cmf::cell_t i = primsLb.imin; i < primsLb.imax; i++)
+                    for (cmf::cell_t i = primsLb.imin; i < primsLb.imax+FACE_FLUX_EVAL; i++)
                     {
                         
                         double stencilData[9*(8)]; //ie,ke,T,P,rho,u,v,w
-                        for (int n = 0; n < params.centOrder + 1; n++)
+                        for (int n = 0; n < params.centOrder + 1-FACE_FLUX_EVAL; n++)
                         {
                             for (int v = 3; v < (5+3); v++)
                             {
@@ -77,12 +78,12 @@ void ComputeConv(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& cons, 
                             // Not needed per se ends
                         }
                         
-                        double C[2]     = {0.0};
-                        double M[6]     = {0.0};
-                        double PGRAD[2] = {0.0};
-                        double KE[2]    = {0.0};
-                        double IE[2]    = {0.0};
-                        double PDIFF[2] = {0.0};
+                        double C[2-FACE_FLUX_EVAL]     = {0.0};
+                        double M[6-3*FACE_FLUX_EVAL]   = {0.0};
+                        double PGRAD[2-FACE_FLUX_EVAL] = {0.0};
+                        double KE[2-FACE_FLUX_EVAL]    = {0.0};
+                        double IE[2-FACE_FLUX_EVAL]    = {0.0};
+                        double PDIFF[2-FACE_FLUX_EVAL] = {0.0};
                         
                         for (int l = 1; l <= stencilWid; l++)
                         {
@@ -90,37 +91,64 @@ void ComputeConv(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& cons, 
                             int jf = stencilWid;
                             for (int m = 0; m <= (l-1); m++)
                             {
+#if(FACE_FLUX_EVAL==0)
                                 C[1] += 2.0*centerCoef[l-1]*fg_QuadSplit(stencilData,jf-m, l,4,5+idir);
+#endif
                                 C[0] += 2.0*centerCoef[l-1]*fg_QuadSplit(stencilData,jf+m,-l,4,5+idir);
                                 for (int idir_mom = 0; idir_mom < 3; idir_mom++)
                                 {
                                     M[idir_mom    ] += 2.0*centerCoef[l-1]*fg_CubeSplit(stencilData,jf-m, l,4,5+idir,5+idir_mom);
+#if(FACE_FLUX_EVAL==0)
                                     M[idir_mom + 3] += 2.0*centerCoef[l-1]*fg_CubeSplit(stencilData,jf+m,-l,4,5+idir,5+idir_mom);
+#endif
                                 }
-
+#if(FACE_FLUX_EVAL==0)
                                 PGRAD[1] += 2.0*centerCoef[l-1]*f_DivSplit(stencilData,jf-m, l,3);
+#endif
                                 PGRAD[0] += 2.0*centerCoef[l-1]*f_DivSplit(stencilData,jf+m,-l,3);
 
                                 for (int vel_comp = 0;  vel_comp < 3; vel_comp ++)
                                 {
+#if(FACE_FLUX_EVAL==0)
                                     KE[1] += 2.0*centerCoef[l-1]*fg_QuadSplit(stencilData,jf-m, l,4,5+idir)*0.5*(stencilData[stencilIdx(5+vel_comp,jf-m)]*stencilData[stencilIdx(5+vel_comp,jf-m+l)]);
+#endif
                                     KE[0] += 2.0*centerCoef[l-1]*fg_QuadSplit(stencilData,jf+m,-l,4,5+idir)*0.5*(stencilData[stencilIdx(5+vel_comp,jf+m)]*stencilData[stencilIdx(5+vel_comp,jf+m-l)]);
                                 }
 
+#if(FACE_FLUX_EVAL==0)
                                 IE[1] += 2.0*centerCoef[l-1]*fg_CubeSplit(stencilData,jf-m, l,4,0,5+idir);
+#endif
                                 IE[0] += 2.0*centerCoef[l-1]*fg_CubeSplit(stencilData,jf+m,-l,4,0,5+idir);
 
+#if(FACE_FLUX_EVAL==0)
                                 PDIFF[1] += 2.0*centerCoef[l-1]*fg_DivSplit(stencilData,jf-m, l,5+idir,3);
+#endif
                                 PDIFF[0] += 2.0*centerCoef[l-1]*fg_DivSplit(stencilData,jf+m,-l,5+idir,3);
                             }
                         }
-                        
+    
+#if(FACE_FLUX_EVAL==0)                    
                         rhsLb(0, i, j, k)      -= (1.0-ALPHA)*info.dxInv[idir]*(C[1] - C[0]);
                         rhsLb(1, i, j, k)      -= (1.0-ALPHA)*info.dxInv[idir]*(IE[1] + KE[1] + PDIFF[1] - IE[0] - KE[0] - PDIFF[0]);
                         rhsLb(2, i, j, k)      -= (1.0-ALPHA)*info.dxInv[idir]*(M[0] - M[3]);
                         rhsLb(3, i, j, k)      -= (1.0-ALPHA)*info.dxInv[idir]*(M[1] - M[4]);
                         rhsLb(4, i, j, k)      -= (1.0-ALPHA)*info.dxInv[idir]*(M[2] - M[5]);
                         rhsLb(2+idir, i, j, k) -= (1.0-ALPHA)*info.dxInv[idir]*(PGRAD[1] - PGRAD[0]);
+#else
+                        rhsLb(0, i, j, k)      -= (1.0-ALPHA)*info.dxInv[idir]*(-C[0]);
+                        rhsLb(1, i, j, k)      -= (1.0-ALPHA)*info.dxInv[idir]*(-IE[0] - KE[0] - PDIFF[0]);
+                        rhsLb(2, i, j, k)      += (1.0-ALPHA)*info.dxInv[idir]*(M[0]);
+                        rhsLb(3, i, j, k)      += (1.0-ALPHA)*info.dxInv[idir]*(M[1]);
+                        rhsLb(4, i, j, k)      += (1.0-ALPHA)*info.dxInv[idir]*(M[2]);
+                        rhsLb(2+idir, i, j, k) -= (1.0-ALPHA)*info.dxInv[idir]*(-PGRAD[0]);
+                        
+                        rhsLb(0,      i+dijk[0], j+dijk[1], k+dijk[2])      += (1.0-ALPHA)*info.dxInv[idir]*(-C[0]);
+                        rhsLb(1,      i+dijk[0], j+dijk[1], k+dijk[2])      += (1.0-ALPHA)*info.dxInv[idir]*(-IE[0] - KE[0] - PDIFF[0]);
+                        rhsLb(2,      i+dijk[0], j+dijk[1], k+dijk[2])      -= (1.0-ALPHA)*info.dxInv[idir]*(M[0]);
+                        rhsLb(3,      i+dijk[0], j+dijk[1], k+dijk[2])      -= (1.0-ALPHA)*info.dxInv[idir]*(M[1]);
+                        rhsLb(4,      i+dijk[0], j+dijk[1], k+dijk[2])      -= (1.0-ALPHA)*info.dxInv[idir]*(M[2]);
+                        rhsLb(2+idir, i+dijk[0], j+dijk[1], k+dijk[2]) += (1.0-ALPHA)*info.dxInv[idir]*(-PGRAD[0]);
+#endif
                     }
                 }
             }
@@ -148,8 +176,8 @@ void ComputeConvDiss(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& co
         cmf::BlockArray<double, 1> rhsLb  = rhs[lb];
         cmf::BlockInfo info = rhs.Mesh()->GetBlockInfo(lb);
         DataView<double, Dims<5,5,2>> fluxStencil;
-        double fluxR[5];
-        double fluxL[5];
+        double fluxR[5]={0.0};
+        double fluxL[5]={0.0};
         for (int idir = 0; idir < 3; idir++)
         {
             int dijk[3] = {0};
@@ -166,16 +194,16 @@ void ComputeConvDiss(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& co
                             double rho   = consLb(0,      i+(n1-2)*dijk[0], j+(n1-2)*dijk[1], k+(n1-2)*dijk[2]);
                             double rhoE  = consLb(1,      i+(n1-2)*dijk[0], j+(n1-2)*dijk[1], k+(n1-2)*dijk[2]);
                             double rhoU  = consLb(2,      i+(n1-2)*dijk[0], j+(n1-2)*dijk[1], k+(n1-2)*dijk[2]);
-                            double rhoW  = consLb(3,      i+(n1-2)*dijk[0], j+(n1-2)*dijk[1], k+(n1-2)*dijk[2]);
-                            double rhoV  = consLb(4,      i+(n1-2)*dijk[0], j+(n1-2)*dijk[1], k+(n1-2)*dijk[2]);
+                            double rhoV  = consLb(3,      i+(n1-2)*dijk[0], j+(n1-2)*dijk[1], k+(n1-2)*dijk[2]);
+                            double rhoW  = consLb(4,      i+(n1-2)*dijk[0], j+(n1-2)*dijk[1], k+(n1-2)*dijk[2]);
                             double Un    = consLb(2+idir, i+(n1-2)*dijk[0], j+(n1-2)*dijk[1], k+(n1-2)*dijk[2])/rho;
                             for (int pp = 0; pp < 2; pp++)
                             {
-                                fluxStencil(n1, 0, pp) =  rho*Un*0.5;
-                                fluxStencil(n1, 1, pp) = rhoE*Un*0.5;
-                                fluxStencil(n1, 2, pp) = rhoU*Un*0.5;
-                                fluxStencil(n1, 3, pp) = rhoV*Un*0.5;
-                                fluxStencil(n1, 4, pp) = rhoW*Un*0.5;
+                                fluxStencil(0, n1, pp) =  rho*Un*0.5;
+                                fluxStencil(1, n1, pp) = rhoE*Un*0.5;
+                                fluxStencil(2, n1, pp) = rhoU*Un*0.5;
+                                fluxStencil(3, n1, pp) = rhoV*Un*0.5;
+                                fluxStencil(4, n1, pp) = rhoW*Un*0.5;
                             }
                         }
                         
@@ -190,13 +218,13 @@ void ComputeConvDiss(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& co
                             
                             double br1 = (ar-br)*(ar-br);
                             double br2 = (cr-br)*(cr-br);
-                            double sumr = br1 + br2;
                             
-                            br1/=sumr;
-                            br2/=sumr;
+                            double wr1 = 0.3333333333/(1e-16+br1*br1);
+                            double wr2 = 0.6666666667/(1e-16+br2*br2);
                             
-                            double wr1 = 0.3333333333/(1e-16+br1);
-                            double wr2 = 0.6666666667/(1e-16+br2);
+                            double sumw = wr1 + wr2;
+                            wr1/=sumw;
+                            wr2/=sumw;
                             
                             //left
                             double rl1 = -0.5*dl+1.5*cl;
@@ -204,13 +232,13 @@ void ComputeConvDiss(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& co
                             
                             double bl1 = (al-bl)*(al-bl);
                             double bl2 = (cl-bl)*(cl-bl);
-                            double suml = bl1 + bl2;
                             
-                            bl1/=suml;
-                            bl2/=suml;
+                            double wl1 = 0.3333333333/(1e-16+bl1*bl1);
+                            double wl2 = 0.6666666667/(1e-16+bl2*bl2);
                             
-                            double wl1 = 0.3333333333/(1e-16+bl1);
-                            double wl2 = 0.6666666667/(1e-16+bl2);
+                            sumw = wl1 + wl2;
+                            wl1/=sumw;
+                            wl2/=sumw;
                             
                             return rr1*wr1+rr2*wr2+rl1*wl1+rl2*wl2;
                         };
@@ -221,6 +249,16 @@ void ComputeConvDiss(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& co
                             fluxR[n1] = weno3(fluxStencil(0, n1, 0), fluxStencil(1, n1, 0), fluxStencil(2, n1, 0), fluxStencil(3, n1, 0), fluxStencil(0, n1, 1), fluxStencil(1, n1, 1), fluxStencil(2, n1, 1), fluxStencil(3, n1, 1));
                             fluxL[n1] = weno3(fluxStencil(1, n1, 0), fluxStencil(2, n1, 0), fluxStencil(3, n1, 0), fluxStencil(4, n1, 0), fluxStencil(1, n1, 1), fluxStencil(2, n1, 1), fluxStencil(3, n1, 1), fluxStencil(4, n1, 1));
                             rhsLb(n1, i, j, k) -= ALPHA*(fluxR[n1]-fluxL[n1])*info.dxInv[idir];
+                            
+                            if (fluxR[n1]!=fluxR[n1] || fluxL[n1]!=fluxL[n1])
+                            {
+                                print(fluxStencil(0, n1, 0), fluxStencil(1, n1, 0), fluxStencil(2, n1, 0), fluxStencil(3, n1, 0), fluxStencil(0, n1, 1), fluxStencil(1, n1, 1), fluxStencil(2, n1, 1), fluxStencil(3, n1, 1));
+                                print(fluxStencil(1, n1, 0), fluxStencil(2, n1, 0), fluxStencil(3, n1, 0), fluxStencil(4, n1, 0), fluxStencil(1, n1, 1), fluxStencil(2, n1, 1), fluxStencil(3, n1, 1), fluxStencil(4, n1, 1));
+                                print("nan");
+                                print(i,j,k,n1);
+                                KILL;
+                            }
+
                         }
                     }
                 }

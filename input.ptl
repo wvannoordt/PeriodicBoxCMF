@@ -15,7 +15,7 @@ Domain
 {
     Exchanges
     {
-        exchangeDim = [2, 2, 2] // Number of exchange cells to use in each direction
+        exchangeDim = [4, 4, 4] // Number of exchange cells to use in each direction
         interpolationOrder = 2 // The order of interpolation from one level to the next, or previous, when performing exchanges
     }
     Partition
@@ -34,7 +34,7 @@ Solver
     cp = 3.5
     CFL = 0.1
     maxCFL = 5.0
-    maxStep = 1000
+    maxStep = 20
     outputInterval = 100
     centOrder = 2
     uLimit = 15.0

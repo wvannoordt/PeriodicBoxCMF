@@ -272,10 +272,11 @@ int main(int argc, char** argv)
 			print("deltaT:", deltaT);
 			print("CFL:", maxCFL);
 			print("");
-			if (!(params.maxCFL > maxCFL))
+			
+			/*if (!(params.maxCFL > maxCFL))
 			{
 				KILL;
-			}
+			}*/
 		}
 		if (nt%params.outputInterval==0 && nt > 0)
 		{
